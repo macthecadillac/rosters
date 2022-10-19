@@ -1,4 +1,7 @@
 #!/usr/bin/env python
+# TODO: update README to include tectonic
+# TODO: avoid sequential if tectonic has been initialized
+# TODO: choices for reset: full reset, reset only tectonic
 # TODO: thoroughly test attendance
 # TODO: message when no problem is found for attendance
 # TODO: test everything on Windows
@@ -17,6 +20,7 @@ import pandas
 import random
 import re
 import shutil
+import string
 import subprocess
 import sys
 import toml
@@ -193,12 +197,29 @@ class PDFWriter:
     def __init__(self):
         self.procs = dict()
         self.cwd = os.getcwd()
+        self.sequential = True
 
     def __enter__(self):
         return self
 
     def __exit__(self, exc_type, exc_value, traceback):
         self.clean()
+
+    def call_ext(self, cmd, parent_dir, fname, src):
+        try:
+            os.makedirs(parent_dir, exist_ok=True)
+            os.chdir(parent_dir)
+        except OSError:
+            pass
+        src_fname = '{}.tex'.format(fname)
+        with open(src_fname, 'w') as tmp:
+            tmp.write(src)
+        # call external program
+        proc = subprocess.Popen(cmd + [src_fname], stdout=subprocess.PIPE,
+                                stderr=subprocess.DEVNULL)
+        self.procs[fname] = (parent_dir, proc)
+        if self.sequential:
+            self.clean()
 
     def write(self, parent_dir, fname, src):
         '''
@@ -213,22 +234,18 @@ class PDFWriter:
             src : string
                 LaTeX source code
         '''
-        # check for the `pdflatex` executable in PATH, abort if not found
-        if shutil.which('pdflatex') is None:
-            sys.exit('pdflatex not found. Do you have LaTeX installed and ' +
-                     'configured on your system?')
-        try:
-            os.makedirs(parent_dir, exist_ok=True)
-            os.chdir(parent_dir)
-        except OSError:
-            pass
-        src_fname = '{}.tex'.format(fname)
-        with open(src_fname, 'w') as tmp:
-            tmp.write(src)
-        # call `pdflatex`
-        cmd = ['pdflatex', '-interaction=nonstopmode', src_fname]
-        proc = subprocess.Popen(cmd, stdout=subprocess.PIPE)
-        self.procs[fname] = (parent_dir, proc)
+        # check for the `pdflatex` and `tectonic` executables in PATH, abort if
+        # not found
+        if shutil.which('tectonic'):
+            self.call_ext(['tectonic'], parent_dir, fname, src)
+            self.sequential = False
+        elif shutil.which('pdflatex'):
+            self.sequential = False
+            self.call_ext(['pdflatex', '-interaction=nonstopmode'],
+                          parent_dir, fname, src)
+        else:
+            sys.exit('pdflatex and tectonic not found. Do you have LaTeX ' +
+                     'installed and configured on your system?')
 
     def clean(self):
         '''
@@ -241,12 +258,21 @@ class PDFWriter:
             # if pdfLaTeX showed an error in terminal output, don't clean up
             stdout = proc.stdout.read().decode('utf-8')
             if 'error' in stdout or 'Error' in stdout:
-                print('`pdflatex` encountered an error when processing ' +
-                      '\'{}.tex\'. See log for details.'.format(fname))
+                if 'not found' in stdout:
+                    print('Encountered missing package when processing ' +
+                          '\'{}.tex\'.'.format(format) + 'One solution is to ' +
+                          'install `tectonic` and try again.')
+                else:
+                    print('`pdflatex` encountered an error when processing ' +
+                          '\'{}.tex\'. See log for details.'.format(fname))
                 continue
-            # os.remove('{}.tex'.format(fname))
-            os.remove('{}.log'.format(fname))
-            os.remove('{}.aux'.format(fname))
+            os.remove('{}.tex'.format(fname))
+            try:
+                os.remove('{}.log'.format(fname))
+                os.remove('{}.aux'.format(fname))
+            except OSError:
+                pass
+        self.procs = dict()
         os.chdir(self.cwd)
 
 
@@ -456,9 +482,12 @@ class SummaryAttendanceSheet:
                                index=False, header=None)
             ft = openpyxl.styles.Font(color='FF0000')
             for sheet in writer.sheets:
+                worksheet = writer.book[sheet]
+                worksheet.font = openpyxl.styles.Font(name='Arial')
+                worksheet.column_dimensions['D'].width = 25
                 if sheet != 'summary':
                     for cell in ['A1', 'A2', 'A3']:
-                        writer.book[sheet][cell].font = ft
+                        worksheet[cell].font = ft
 
     @classmethod
     def read(cls, fpath, config):
@@ -524,9 +553,7 @@ class PublishedData:
         '''
         sheets = dict()
         for section in set(self.data.index):
-            grading_sheet = self.data.loc[section] \
-                                .sort_values(by=['Student']) \
-                                .set_index('Student', drop=False)
+            grading_sheet = self.data.loc[section].set_index('Student', drop=False)
             n = self.section_number(section)
             sheets[n] = grading_sheet
         current_data = TAGradeSheets(current_data_fpath, self.config)
@@ -602,13 +629,19 @@ class TAGradeSheets:
     def write(self):
         try:
             fpath = self.config.paths['current-grade-sheet']
+            if os.path.splitext(fpath)[1] != '.xlsx':
+                sys.exit('Error: \'{}\' is not an Excel file name'.format(fpath))
         except KeyError:
             fpath = os.path.join(os.getcwd(), 'Grades.xlsx')
         with pandas.ExcelWriter(fpath) as writer:
             for section, sheet in sorted(self.data.items()):
-                sheet.to_excel(writer,
-                               sheet_name='section {}'.format(section),
-                               index=False)
+                sheet_name = 'section {}'.format(section)
+                sheet.to_excel(writer, sheet_name=sheet_name, index=False)
+                worksheet = writer.book[sheet_name]
+                ncol = worksheet.max_column
+                for letter in itertools.islice(string.ascii_uppercase, ncol):
+                    worksheet.column_dimensions[letter].width = 25
+                worksheet.freeze_panes = worksheet['B1']
 
     @property
     def assignments(self):
@@ -926,16 +959,15 @@ class Program:
         data = PublishedData(self.args.PUBLISHED, self.config)
         if self.args.current is not None:
             data.update(self.args.current[0])
-            data.export()
         else:
             try:
                 fpath = self.config.paths['current-grade-sheet']
+                data.update(fpath)
             except KeyError:
                 sys.exit('Path to current grade spreadsheet not provided ' +
                          'through the \'--current\' option or configuration ' +
                          'file. Abort.')
-            data.update(fpath)
-            data.export()
+        data.export()
         TAGradeSheets.from_published(data, self.config).write()
 
     def new_spreadsheet(self):
