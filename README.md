@@ -94,8 +94,11 @@ lab8 = ['A4', 'C3', 'D2', 'E']
 lab9 = ['A9', 'B5', 'B8', 'C13', 'D10']
 
 [paths]
+# directory to which generated rosters are saved
 rosters = '/Volumes/GoogleDrive/Shared drives/1ABCL Fall 22 - Current Quarter/Attendance/1CL'
+# must be the full path to an xlsx file
 current-grade-sheet = '/Users/maclee/Documents/code/1l-tools-tools/test.xlsx'
+# directory to save grade review output
 grade-review = '/Users/maclee/Documents/code/1l-tools-tools/Grade Review'
 ```
 
