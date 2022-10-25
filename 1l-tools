@@ -1,5 +1,8 @@
 #!/usr/bin/env python
 # TODO: update README to include tectonic
+# TODO: commandline option for output path
+# TODO: automatically create backup if overwriting file
+# TODO: new explicit overwrite option
 # TODO: avoid sequential if tectonic has been initialized
 # TODO: choices for reset: full reset, reset only tectonic
 # TODO: thoroughly test attendance
@@ -23,6 +26,7 @@ import shutil
 import string
 import subprocess
 import sys
+import tempfile
 import toml
 
 
@@ -148,7 +152,7 @@ class CodeGen:
             '    \\textbf{Signature} & \\textbf{Late} & \\textbf{Group} & ' +
             '\\multicolumn{1}{c|}{\\textbf{Student}} & \\textbf{TA Check} & ' +
             # put in the checkpoints in the table column headings
-            ' & '.join('\\textbf{{{}}}'.format(c) for c in self.checkpoints) +
+            ' & '.join('\\textbf{{{}}}'.format(c).replace('&', '\&') for c in self.checkpoints) +
             ' \\\\',
             '    \\Xhline{2pt}']
         # LaTeX code at the end of a table
@@ -206,18 +210,15 @@ class PDFWriter:
         self.clean()
 
     def call_ext(self, cmd, parent_dir, fname, src):
-        try:
-            os.makedirs(parent_dir, exist_ok=True)
-            os.chdir(parent_dir)
-        except OSError:
-            pass
         src_fname = '{}.tex'.format(fname)
+        tmp_dir = tempfile.TemporaryDirectory()
+        os.chdir(tmp_dir.name)
         with open(src_fname, 'w') as tmp:
             tmp.write(src)
         # call external program
         proc = subprocess.Popen(cmd + [src_fname], stdout=subprocess.PIPE,
                                 stderr=subprocess.DEVNULL)
-        self.procs[fname] = (parent_dir, proc)
+        self.procs[fname] = {'tmp': tmp_dir, 'parent': parent_dir, 'proc': proc}
         if self.sequential:
             self.clean()
 
@@ -234,6 +235,10 @@ class PDFWriter:
             src : string
                 LaTeX source code
         '''
+        try:
+            os.makedirs(parent_dir, exist_ok=True)
+        except OSError:
+            pass
         # check for the `pdflatex` and `tectonic` executables in PATH, abort if
         # not found
         if shutil.which('tectonic'):
@@ -252,26 +257,29 @@ class PDFWriter:
         Clean up the temporary files created by pdfLaTeX as each process
         finishes
         '''
-        for fname, (parent, proc) in self.procs.items():
-            os.chdir(parent)
-            proc.wait()
+        for fname, info in self.procs.items():
+            tmp = info['tmp']
+            parent = info['parent']
+            os.chdir(tmp.name)
+            info['proc'].wait()
             # if pdfLaTeX showed an error in terminal output, don't clean up
-            stdout = proc.stdout.read().decode('utf-8')
+            stdout = info['proc'].stdout.read().decode('utf-8')
             if 'error' in stdout or 'Error' in stdout:
                 if 'not found' in stdout:
                     print('Encountered missing package when processing ' +
-                          '\'{}.tex\'.'.format(format) + 'One solution is to ' +
+                          '\'{}.tex\'. '.format(fname) + 'One solution is to ' +
                           'install `tectonic` and try again.')
                 else:
                     print('`pdflatex` encountered an error when processing ' +
                           '\'{}.tex\'. See log for details.'.format(fname))
+                log = fname + '.log'
+                shutil.move(os.path.join(tmp.name, log), os.path.join(parent, log))
+                tex = fname + '.tex'
+                shutil.move(os.path.join(tmp.name, tex), os.path.join(parent, tex))
                 continue
-            os.remove('{}.tex'.format(fname))
-            try:
-                os.remove('{}.log'.format(fname))
-                os.remove('{}.aux'.format(fname))
-            except OSError:
-                pass
+            pdf = fname + '.pdf'
+            shutil.move(os.path.join(tmp.name, pdf), os.path.join(parent, pdf))
+            tmp.cleanup()
         self.procs = dict()
         os.chdir(self.cwd)
 
@@ -445,19 +453,18 @@ class SummaryAttendanceSheet:
         # create the column headers in plain text
         chkpt = ','.join(self.checkpoints)
         ncol = len(chkpt)
-        seps = ',' * (ncol - 1)
-        sheet = [',,,,,' + seps,
-                 'Leave blank under "Sigature" if student was present,,,,,' + seps,
-                 'Enter "Absent" under "Signature" if student was absent,,,,,' + seps,
-                 'Enter amount of time under "Late" if student was late,,,,,' + seps,
-                 ',,,,,' + seps,
-                 'Signature,Late,Group,Student,TA Check,' + chkpt]
+        seps = ';' * (ncol - 1)
+        sheet = [';;;;;' + seps,
+                 'Under the "Signature" column, leave blank if present, enter "Absent" if absent, describe circumstances if student left soon after quiz;;;;;' + seps,
+                 'Under the "Late" column, enter the amount of time if they are late;;;;;' + seps,
+                 ';;;;;' + seps,
+                 'Signature;Late;Group;Student;TA Check;' + chkpt]
         # create rows of the roster in plain text
         for group_number, students in sorted(roster.groups.items()):
             for student in students:
-                sheet.append(',,{},{},,'.format(group_number, student) + seps)
+                sheet.append(';;{};{};;'.format(group_number, student) + seps)
         # read the plain text as a CSV and add as a sheet
-        self.sheets[roster.section] = pandas.read_csv(io.StringIO('\n'.join(sheet)))
+        self.sheets[roster.section] = pandas.read_csv(io.StringIO('\n'.join(sheet)), sep=';')
 
     def to_dataframe(self):
         return pandas.concat(self.sheets.values())
@@ -475,6 +482,8 @@ class SummaryAttendanceSheet:
         summary_page += ['Lab {},Check if complete'.format(self.lab)]
         summary_page += ['Section {}'.format(s) for s in sorted(self.sheets.keys())]
         summary_page = pandas.read_csv(io.StringIO('\n'.join(summary_page)))
+        if os.path.exists(fpath):
+            os.rename(fpath, fpath + '.bak')
         with pandas.ExcelWriter(fpath) as writer:
             summary_page.to_excel(writer, sheet_name='summary', index=False, header=None)
             for section, sheet in sorted(self.sheets.items()):
@@ -500,7 +509,7 @@ class SummaryAttendanceSheet:
                 Path to the Excel spreadsheet
         '''
         try:
-            summary = pandas.read_excel(fpath, sheet_name=None, skiprows=4)
+            summary = pandas.read_excel(fpath, sheet_name=None, skiprows=3)
         except OSError:
             sys.exit('\'{}\' is not a valid path'.format(fpath))
         try:
@@ -633,6 +642,8 @@ class TAGradeSheets:
                 sys.exit('Error: \'{}\' is not an Excel file name'.format(fpath))
         except KeyError:
             fpath = os.path.join(os.getcwd(), 'Grades.xlsx')
+        if os.path.exists(fpath):
+            os.rename(fpath, fpath + '.bak')
         with pandas.ExcelWriter(fpath) as writer:
             for section, sheet in sorted(self.data.items()):
                 sheet_name = 'section {}'.format(section)
@@ -696,8 +707,9 @@ class TAGradeSheets:
             ax.set_title(ta)
 
         fig.tight_layout()
-        parent = self.grade_review_path()
-        fig.savefig(os.path.join(parent, 'histogram.pdf'))
+        fh = tempfile.NamedTemporaryFile(suffix='.pdf')
+        fig.savefig(fh, format='pdf')
+        return fh
 
     def grade_review_path(self):
         '''
@@ -728,12 +740,10 @@ class TAGradeSheets:
         self.data_grouped_by_ta.boxplot(ax=ax, subplots=False, rot=60)
         ax.set_xticklabels(self.config.ta_list)
         ax.set_ylabel('Points')
-        ax.axhline(float(assignment_data.mean()), lw=1.5, linestyle=':',
-                   label='mean')
-        ax.legend()
         fig.tight_layout()
-        parent = self.grade_review_path()
-        fig.savefig(os.path.join(parent, 'box_whisker.pdf'))
+        fh = tempfile.NamedTemporaryFile(suffix='.pdf')
+        fig.savefig(fh, format='pdf')
+        return fh
 
     def grade_review(self, assignment):
         '''
@@ -748,11 +758,7 @@ class TAGradeSheets:
             matplotlib.style.use('seaborn')
         else:
             matplotlib.style.use('seaborn-v0_8')
-        self.plot_histogram(assignment)
-        self.plot_box_whisker(assignment)
         self.generate_report(assignment)
-        os.remove(os.path.join(self.grade_review_path(), 'histogram.pdf'))
-        os.remove(os.path.join(self.grade_review_path(), 'box_whisker.pdf'))
 
     def generate_report(self, assignment):
         '''
@@ -763,41 +769,69 @@ class TAGradeSheets:
             assignment : str
                 Name of the assignment the way it is on Canvas
         '''
-        ntas = len(self.config.ta_list)
-        means = self.data_grouped_by_ta.mean().squeeze().round(2)
-        stds = self.data_grouped_by_ta.std().squeeze().round(2)
-        src = [
-            '\\documentclass[11pt]{article}',
-            '\\usepackage{booktabs}',
-            '\\usepackage[sfdefault, lf]{carlito}',
-            '\\usepackage{graphicx}',
-            '\\usepackage[margin=0.75in]{geometry}',
-            '\\pagenumbering{gobble}',
-            '\\begin{document}',
-            '\\begin{center}',
-            '  \\hspace{{3em}}\\begin{{tabular}}{{c{}}}'.format('c' * ntas),
-            '    \\toprule',
-            '    & ' + ' & '.join(self.config.ta_list) + '\\\\',
-            '    \\midrule',
-            '    Mean & ' + ' & '.join(map(str, means)) + '\\\\',
-            '    STD & ' + ' & '.join(map(str, stds)) + '\\\\',
-            '    \\bottomrule',
-            '  \\end{tabular}',
-            '',
-            '  \\includegraphics[height=3.5in]{box_whisker.pdf}',
-            '',
-            '  \\includegraphics[width=\\textwidth]{histogram.pdf}',
-            '\\end{center}',
-            '\\end{document}']
-        parent = self.grade_review_path()
-        with PDFWriter() as writer:
-            writer.write(parent, '{} Report'.format(assignment), '\n'.join(src))
+        with self.plot_histogram(assignment) as hist:
+            with self.plot_box_whisker(assignment) as bw:
+                ntas = len(self.config.ta_list)
+                means = self.data_grouped_by_ta.mean().squeeze().round(2)
+                stds = self.data_grouped_by_ta.std().squeeze().round(2)
+                src = [
+                    '\\documentclass[11pt]{article}',
+                    '\\usepackage{booktabs}',
+                    '\\usepackage[sfdefault, lf]{carlito}',
+                    '\\usepackage{graphicx}',
+                    '\\usepackage[margin=0.75in]{geometry}',
+                    '\\pagenumbering{gobble}',
+                    '\\begin{document}',
+                    '\\begin{center}',
+                    '  \\hspace{{3em}}\\begin{{tabular}}{{c{}}}'.format('c' * ntas),
+                    '    \\toprule',
+                    '    & ' + ' & '.join(self.config.ta_list) + '\\\\',
+                    '    \\midrule',
+                    '    Mean & ' + ' & '.join(map(str, means)) + '\\\\',
+                    '    STD & ' + ' & '.join(map(str, stds)) + '\\\\',
+                    '    \\bottomrule',
+                    '  \\end{tabular}',
+                    '',
+                    '  \\includegraphics[height=3.5in]{{{}}}'.format(bw.name),
+                    '',
+                    '  \\includegraphics[width=\\textwidth]{{{}}}'.format(hist.name),
+                    '\\end{center}',
+                    '\\end{document}']
+                parent = self.grade_review_path()
+                with PDFWriter() as writer:
+                    writer.write(parent, '{} Report'.format(assignment), '\n'.join(src))
 
 
-class Parameters:
+class Configuration:
 
-    def __init__(self, parsed):
-        self.parsed = parsed
+    @classmethod
+    def load(cls):
+        ''' In-memory representation of the parsed configuration '''
+        obj = cls()
+        try:
+            obj.parsed = toml.load(Configuration.path())
+        except OSError:
+            obj.parsed = dict()
+        except toml.decoder.TomlDecodeError as e:
+            print('Warning: malformed configuration\n  {}'.format(e))
+            obj.parsed = dict()
+        return obj
+
+    @staticmethod
+    def path():
+        ''' Path to the configuration file '''
+        config_dir = None
+        if os.name == 'nt':
+            for path in map(os.getenv, ['LOCALAPPDATA', 'APPDATA']):
+                if path:
+                    config_dir = path
+        else:
+            xdg_config_home = os.getenv('XDG_CONFIG_HOME')
+            if xdg_config_home:
+                config_dir = xdg_config_home
+            config_dir = os.path.join(os.path.expanduser('~'), '.config')
+        if config_dir is not None:
+            return os.path.join(config_dir, '1l-tools.toml')
 
     @property
     def paths(self):
@@ -843,52 +877,26 @@ class Program:
                 A map-like object returned by argparse
         '''
         self.args = args
-
-    @property
-    def config_fpath(self):
-        ''' Path to the configuration file '''
-        config_dir = None
-        if os.name == 'nt':
-            for path in map(os.getenv, ['LOCALAPPDATA', 'APPDATA']):
-                if path:
-                    config_dir = path
-        else:
-            xdg_config_home = os.getenv('XDG_CONFIG_HOME')
-            if xdg_config_home:
-                config_dir = xdg_config_home
-            config_dir = os.path.join(os.path.expanduser('~'), '.config')
-        if config_dir is not None:
-            return os.path.join(config_dir, '1l-tools.toml')
-
-    @property
-    def config(self):
-        ''' In-memory representation of the parsed configuration '''
-        try:
-            return Parameters(toml.load(self.config_fpath))
-        except OSError:
-            return Parameters(dict())
-        except toml.decoder.TomlDecodeError as e:
-            print('Warning: malformed configuration\n  {}'.format(e))
-            return Parameters(dict())
+        self.config = Configuration.load()
 
     def open_configuration(self):
         ''' Open the configuration file in an external editor '''
         if os.name == 'nt':
-            subprocess.run([self.config_fpath])
+            subprocess.run([self.config.path])
         else:
             try:
                 if os.environ['EDITOR']:
                     cmd = os.path.expandvars('$EDITOR')
-                    subprocess.run([cmd, self.config_fpath])
+                    subprocess.run([cmd, self.config.path()])
                 else:
-                    subprocess.run(['open', self.config_fpath])
+                    subprocess.run(['open', self.config.path()])
             except KeyError:
-                subprocess.run(['open', self.config_fpath])
+                subprocess.run(['open', self.config.path()])
 
     def reset(self):
         ''' Reset configuration '''
         try:
-            os.remove(self.config_fpath)
+            os.remove(self.config.path())
         except FileNotFoundError:
             pass
 
