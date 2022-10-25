@@ -5,8 +5,6 @@
 # TODO: new explicit overwrite option
 # TODO: avoid sequential if tectonic has been initialized
 # TODO: choices for reset: full reset, reset only tectonic
-# TODO: thoroughly test attendance
-# TODO: message when no problem is found for attendance
 # TODO: test everything on Windows
 ''' Generator for 1-series lab roster/checkpoint sheets '''
 
@@ -466,9 +464,6 @@ class SummaryAttendanceSheet:
         # read the plain text as a CSV and add as a sheet
         self.sheets[roster.section] = pandas.read_csv(io.StringIO('\n'.join(sheet)), sep=';')
 
-    def to_dataframe(self):
-        return pandas.concat(self.sheets.values())
-
     def write(self):
         ''' Write to file'''
         # FIXME: should take path as arg instead of taking config to make this
@@ -497,31 +492,6 @@ class SummaryAttendanceSheet:
                 if sheet != 'summary':
                     for cell in ['A1', 'A2', 'A3']:
                         worksheet[cell].font = ft
-
-    @classmethod
-    def read(cls, fpath, config):
-        '''
-        Read from file
-
-        Parameters
-        ----------
-            fpath : str
-                Path to the Excel spreadsheet
-        '''
-        try:
-            summary = pandas.read_excel(fpath, sheet_name=None, skiprows=3)
-        except OSError:
-            sys.exit('\'{}\' is not a valid path'.format(fpath))
-        try:
-            lab = int(summary['summary'].columns[0].split(' ')[-1])
-        except ValueError:
-            sys.exit('\'{}\' is not a recognized format'.format(fpath))
-        random_sheet = list(filter(lambda x: x != 'summary', summary.keys()))[0]
-        checkpoints = summary[random_sheet].columns[5:]
-        obj = cls(lab, checkpoints, config)
-        obj.sheets = dict(summary.items())
-        obj.sheets.pop('summary')
-        return obj
 
 
 class PublishedData:
@@ -905,7 +875,6 @@ class Program:
         dispatcher = {'rosters': self.rosters,
                       'review': self.review,
                       'merge': self.merge,
-                      'attendance': self.attendance,
                       'new-spreadsheet': self.new_spreadsheet,
                       'edit-config': self.open_configuration,
                       'reset': self.reset}
@@ -983,27 +952,6 @@ class Program:
         data = PublishedData(self.args.DATA, self.config)
         TAGradeSheets.from_published(data, self.config).write()
 
-    def attendance(self):
-        ''' The attendance sub-program '''
-        quiz_data = PublishedData(self.args.QUIZ, self.config)
-        attendance_sheet = SummaryAttendanceSheet.read(self.args.ATTENDANCE, self.config)
-        quizzes = dict(enumerate(quiz_data.quizzes))
-        msg = 'Which quiz are we looking at here? '
-        quiz = self.select(msg, quizzes)
-        quiz_grades = quiz_data.data.filter(items=['Student', 'Section', quiz]) \
-                                    .set_index('Student')
-        attendance_data = attendance_sheet.to_dataframe().set_index('Student')
-        for student, row in attendance_data.iterrows():
-            if not (pandas.isnull(row['Signature']) and pandas.isnull(row['Late'])):
-                record = quiz_grades.loc[student, :]
-                if not (record[quiz] < 1e4 or pandas.isnull(record[quiz])):
-                    # FIXME: assumptions about how TAs fill in cells could be wrong
-                    if not pandas.isnull(row['Signature']):
-                        print(record['Section'], student, record[quiz], row['Signature'])
-                    else:
-                        print(record['Section'], student, record[quiz], row['Late'])
-
-
 if __name__ == '__main__':
     # set up argument parser and help text
     parser = argparse.ArgumentParser(prog='1l')
@@ -1024,9 +972,6 @@ if __name__ == '__main__':
     new_spreadsheet_p.add_argument('DATA', help='path to the Canvas exported CSV file')
     grade_review_p = sub_ps.add_parser('review', help='generate grading spreadsheets')
     grade_review_p.add_argument('DATA', help='path to the current data spreadsheet')
-    attendance_p = sub_ps.add_parser('attendance', help='compare quiz data with attendance of the week')
-    attendance_p.add_argument('QUIZ', help='path to the Canvas exported CSV file')
-    attendance_p.add_argument('ATTENDANCE', help='path to the summary attendance sheet')
     edit_config_p = sub_ps.add_parser('edit-config',
                                       help='edit the configuration file')
     reset_p = sub_ps.add_parser('reset', help='remove configuration file')
