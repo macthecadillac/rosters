@@ -24,9 +24,11 @@ by `pip install .` in the directory containing `setup.py`.
 # Usage
 
 This script has a 'multitool' interface, where the main program needs to be
-followed by a subcommand, which takes its own arguments. The general syntax is
-`1l-tools <subcommand> <arguments> [options]`. There are five subcommands in
-total, the usage of which is described below.
+followed by a subcommand, which takes its own arguments. If you followed the
+above instructions, you should now have `1l-tools` in your path that you can
+directly call in any working directory like any other installed executable. The
+general syntax is `1l-tools <subcommand> <arguments> [options]`. There are five
+subcommands in total, the usage of which is described below.
 
 Run `1l-tools --help`, `1l-tools rosters --help`, `1l-tools merge --help` etc.
 to see the correct syntax and a full list of available options.
@@ -35,7 +37,7 @@ to see the correct syntax and a full list of available options.
     
 This subcommand generates random rosters for every section in the lab. Go to
 Canvas course > Grades > Actions > Export Entire Gradebook. Save the CSV file
-somewhere in your system. Run `1l-tools-tools rosters 1 /path/to/data.csv`,
+somewhere in your system. Run `1l-tools rosters 1 /path/to/data.csv`,
 replacing '1' with the lab number of the week and the last part with the actual
 path to the CSV file. If your path contains spaces, you will need to either
 escape the spaces or put the entire path in between quotes. This will generate
@@ -77,12 +79,17 @@ The configuration is done via the TOML language. Here is a sample configuration
 with all the recognized keys:
 
 ```toml
+# This is essential for grade review, optional for other functions
 [ta-assignment]
-Hanyi = [3, 5, 9, 12]
-Keilan = [4, 6, 10, 11]
-Sheikh = [1, 2, 7, 8]
+# LHS is TA name; RHS is list of section numbers
+George = [3, 5, 9, 12]
+Liz = [4, 6, 10, 11]
+Chuck = [1, 2, 7, 8]
 
+# These are optional
 [checkpoints]
+# LHS can be anything as long as they end with an integer
+# RHS must be a list of strings
 lab1 = ['A', 'B4', 'C7', 'D1']
 lab2 = ['A5', 'A7', 'C12', 'D5']
 lab3 = ['B10', 'C17-C19', 'D3-D4', 'D6']
@@ -93,17 +100,15 @@ lab7 = ['A7', 'B10', 'C11']
 lab8 = ['A4', 'C3', 'D2', 'E']
 lab9 = ['A9', 'B5', 'B8', 'C13', 'D10']
 
+# These are optional
 [paths]
 # directory to which generated rosters are saved
 rosters = '/Volumes/GoogleDrive/Shared drives/1ABCL Fall 22 - Current Quarter/Attendance/1CL'
-# must be the full path to an xlsx file
+# must be a full path to an xlsx file
 current-grade-sheet = '/Users/maclee/Documents/code/1l-tools-tools/test.xlsx'
 # directory to save grade review output
 grade-review = '/Users/maclee/Documents/code/1l-tools-tools/Grade Review'
 ```
-
-The keys for checkpoints do not need to be 'lab1', 'lab2' etc. Anything will
-work as long as it ends with a number.
 
 # Examples
 
