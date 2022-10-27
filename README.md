@@ -1,34 +1,49 @@
 # Setup
 
-## Software requirements
+## External software requirement
 
-This script leverages the power of LaTeX to generate PDFs. For macOS or Linux,
-install TeXLive (the TeXLive installer for macOS is also known as MacTeX). For
-Windows, install MikTeX. There might be issues with missing packages if you
-installed LaTeX some other way and that your LaTeX installation is a partial
-one, such as the `basictex` option from Homebrew. In that case, make sure that
-the `multirow`, `tabularx`, `makecell`, `collcell`, `calc`, and `carlito` LaTeX
-packages are installed.
+For roster generation and grade review, you will need a functioning installation
+of LaTeX on your system. For macOS or Linux, install TeXLive (the TeXLive
+installer for macOS is also known as MacTeX). For Windows, install MikTeX. There
+might be issues with missing packages if you installed LaTeX some other way and
+that your LaTeX installation is a partial one, such as the `basictex` option
+from Homebrew. In that case, make sure that the `multirow`, `tabularx`,
+`makecell`, `booktabs`, and `carlito` LaTeX packages are installed.
 
-## Setup using `pip` (only if you do not have `conda`)
+Alternatively, you can install
+[tectonic](https://tectonic-typesetting.github.io), which is a more or less
+self-contained typesetting system based on LaTeX. If you are encountering
+missing packages, installing `tectonic` should fix it.
 
-Run `pip install --user .` in the directory containing `setup.py`. This will
-install all the required python packages for you and place the script in your 
-`PATH`.
+## Python environment
 
-## Setup using `conda`
+This script requires `pandas`, `openpyxl`, `matplotlib` and `toml` to function.
+If you do *not* use Anaconda/Miniconda, skip to the next section. If you
+installed python with Anaconda/Miniconda, install these packages with `conda`.
+The steps in the remainder of the section are optional after you have installed
+the above packages--it will install the script to your `PATH` so you can call it
+like any properly installed command-line program. It is a nice-to-have, but it
+is not required. Just bear in mind that if you did not follow the following
+steps, you will need to prefix every command in the examples with `python` or
+`python3`, depending on your system configuration.
 
-Run `conda install pandas openpyxl matplotlib toml` in the terminal followed
-by `pip install .` in the directory containing `setup.py`.
+## Setup using `pip`
+
+In the directory containing `setup.py`, if you use Anaconda/Miniconda, run
+```sh
+pip install .
+```
+Otherwise, run
+```sh
+pip install --user .
+```
 
 # Usage
 
-This script has a 'multitool' interface, where the main program needs to be
-followed by a subcommand, which takes its own arguments. If you followed the
-above instructions, you should now have `1l-tools` in your path that you can
-directly call in any working directory like any other installed executable. The
-general syntax is `1l-tools <subcommand> <arguments> [options]`. There are five
-subcommands in total, the usage of which is described below.
+This script has a 'multitool' interface, where the main command is followed by a
+subcommand, which takes its own arguments. The general syntax of the tool is
+`1l-tools <subcommand> <arguments> [options]`. The subcommands will be described
+in the following subsections.
 
 Run `1l-tools --help`, `1l-tools rosters --help`, `1l-tools merge --help` etc.
 to see the correct syntax and a full list of available options.
@@ -37,14 +52,14 @@ to see the correct syntax and a full list of available options.
     
 This subcommand generates random rosters for every section in the lab. Go to
 Canvas course > Grades > Actions > Export Entire Gradebook. Save the CSV file
-somewhere in your system. Run `1l-tools rosters 1 /path/to/data.csv`,
-replacing '1' with the lab number of the week and the last part with the actual
-path to the CSV file. If your path contains spaces, you will need to either
-escape the spaces or put the entire path in between quotes. This will generate
-randomized rosters for every section in the current working directory along with
-an xlsx file mirroring the pdfs for data entry purposes. You can specify
-checkpoints for the lab through the configuration file, which can be overridden
-at runtime by the `--checkpoints` option.
+somewhere in your system. Run `1l-tools rosters 1 /path/to/data.csv`, replacing
+'1' with the lab number of the week and the last part with the actual path to
+the CSV file. If your path contains spaces, you will need to either escape the
+spaces or put the entire path in between quotes. This will generate randomized
+rosters for every section in the current working directory along with an xlsx
+file mirroring the pdfs for data entry purposes. You can specify checkpoints for
+the lab through the configuration file, which can be overridden at runtime by
+the `--checkpoints` option.
 
 ## merge
 
@@ -113,6 +128,13 @@ grade-review = '/Users/maclee/Documents/code/1l-tools-tools/Grade Review'
 # Examples
 
 ```sh
+1l-tools edit-config
+1l-tools reset
 1l-tools rosters 1 /path/to/canvas.csv
 1l-tools rosters 2 /path/to/canvas.csv --checkpoints A7 A8 C13 D5
+1l-tools review /path/to/grades.xlsx
+1l-tools merge /path/to/canvas.csv
+1l-tools merge /path/to/canvas.csv --current /path/to/grades.xlsx
+1l-tools merge /path/to/canvas.csv --inplace
+1l-tools merge /path/to/canvas.csv --current /path/to/grades.xlsx --inplace
 ```
