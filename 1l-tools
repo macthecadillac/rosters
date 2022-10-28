@@ -1,12 +1,13 @@
 #!/usr/bin/env python
-# TODO: update README to include tectonic
 # TODO: commandline option for output path
+# TODO: pdf backend toggle
 # TODO: avoid sequential if tectonic has been initialized
 # TODO: choices for reset: full reset, reset only tectonic
-# TODO: test everything on Windows
-# TODO: RenamableWrite as a decorator?
-''' Generator for 1-series lab roster/checkpoint sheets '''
+# TODO: test everything on Windows (mainly for tectonic and configuration
+# related stuff)
+''' Assorted tools for 1-series lab administration '''
 
+import abc
 import argparse
 import io
 import itertools
@@ -415,21 +416,24 @@ class Rosters:
         return self.rosters
 
 
-class RenamableWrite:
+class MaybeOverwrite(abc.ABC):
 
-    @staticmethod
-    def rename_if_exists(fpath):
+    @abc.abstractmethod
+    def write_to_path(self, fpath):
+        pass
+
+    def maybe_overwrite(self, fpath, inplace):
         prefix, ext = os.path.splitext(fpath)
-        if os.path.exists(fpath):
+        if os.path.exists(fpath) and not inplace:
             for i in itertools.count(1):
                 alt_path = '{}({}){}'.format(prefix, i, ext)
                 if not os.path.exists(alt_path):
-                    return alt_path
-        else:
-            return fpath
+                    fpath = alt_path
+                    break
+        self.write_to_path(fpath)
 
 
-class SummaryAttendanceSheet(RenamableWrite):
+class SummaryAttendanceSheet(MaybeOverwrite):
     '''
     A class of SummaryAttendanceSheet generator objects. After object
     construction, it takes in Roster objects through the `add_roster` method and
@@ -477,16 +481,7 @@ class SummaryAttendanceSheet(RenamableWrite):
         # read the plain text as a CSV and add as a sheet
         self.sheets[roster.section] = pandas.read_csv(io.StringIO('\n'.join(sheet)), sep=';')
 
-    def write(self):
-        ''' Write to file'''
-        # FIXME: should take path as arg instead of taking config to make this
-        # a more robust class
-        try:
-            parent = self.config.paths['rosters']
-        except KeyError:
-            parent = os.getcwd()
-        fpath = os.path.join(parent, 'Lab {} Summary Attendance.xlsx'.format(self.lab))
-        fpath = self.rename_if_exists(fpath)
+    def write_to_path(self, fpath):
         summary_page = [',']
         summary_page += ['Lab {},Check if complete'.format(self.lab)]
         summary_page += ['Section {}'.format(s) for s in sorted(self.sheets.keys())]
@@ -505,8 +500,19 @@ class SummaryAttendanceSheet(RenamableWrite):
                     for cell in ['A1', 'A2', 'A3']:
                         worksheet[cell].font = ft
 
+    def write(self):
+        ''' Write to file'''
+        # FIXME: should take path as arg instead of taking config to make this
+        # a more robust class
+        try:
+            parent = self.config.paths['rosters']
+        except KeyError:
+            parent = os.getcwd()
+        fpath = os.path.join(parent, 'Lab {} Summary Attendance.xlsx'.format(self.lab))
+        self.maybe_overwrite(fpath, inplace=False)
 
-class PublishedData:
+
+class PublishedData(MaybeOverwrite):
     ''' In-memory representation of data published on Canvas '''
 
     def __init__(self, fpath, config):
@@ -552,14 +558,17 @@ class PublishedData:
             sheets[section].update(sheet.set_index('Student', drop=False))
         self.data = pandas.concat(sheets.values()).set_index('Section', drop=False)
 
-    def export(self):
+    def write_to_path(self, fpath):
         '''
         Export data to a CSV file to be uploaded to Canvas
         '''
         # drop quiz data since that has never been updated
         r = r'(^.*(C|c)onclusion.*\(\d+\)$|Student|Section|ID|SIS User ID|SIS Login ID)'
         data = self.data.reset_index(drop=True).filter(regex=r, axis=1)
-        data.to_csv('updated-for-canvas.csv', index=False)
+        data.to_csv(fpath, index=False)
+
+    def export(self, inplace):
+        self.maybe_overwrite('updated-for-canvas.csv', inplace)
 
     @staticmethod
     def section_number(string):
@@ -580,7 +589,7 @@ class PublishedData:
         return int(s)
 
 
-class TAGradeSheets(RenamableWrite):
+class TAGradeSheets(MaybeOverwrite):
     ''' In-memory representation of the latest data on the shared drive '''
 
     def __init__(self, fpath, config):
@@ -617,15 +626,7 @@ class TAGradeSheets(RenamableWrite):
         obj.data = sheets
         return obj
 
-    def write(self, inplace):
-        try:
-            fpath = self.config.paths['current-grade-sheet']
-            if os.path.splitext(fpath)[1] != '.xlsx':
-                sys.exit('Error: \'{}\' is not an Excel file name'.format(fpath))
-            if not inplace:
-                fpath = self.rename_if_exists(fpath)
-        except KeyError:
-            fpath = os.path.join(os.getcwd(), 'updated-ta-grade-sheet.xlsx')
+    def write_to_path(self, fpath):
         with pandas.ExcelWriter(fpath) as writer:
             for section, sheet in sorted(self.data.items()):
                 sheet_name = 'section {}'.format(section)
@@ -635,6 +636,15 @@ class TAGradeSheets(RenamableWrite):
                 for letter in itertools.islice(string.ascii_uppercase, ncol):
                     worksheet.column_dimensions[letter].width = 25
                 worksheet.freeze_panes = worksheet['B1']
+
+    def write(self, inplace):
+        try:
+            fpath = self.config.paths['current-grade-sheet']
+            if os.path.splitext(fpath)[1] != '.xlsx':
+                sys.exit('Error: \'{}\' is not an Excel file name'.format(fpath))
+        except KeyError:
+            fpath = os.path.join(os.getcwd(), 'updated-ta-grade-sheet.xlsx')
+        self.maybe_overwrite(fpath, inplace)
 
     @property
     def assignments(self):
@@ -929,11 +939,9 @@ class Program:
             selection = input(msg)
             try:
                 index = int(selection.strip())
-                choice = choices[index - 1]
-                break
-            except (ValueError, IndexError):
+                return choices[index - 1]
+            except (ValueError, KeyError):
                 print('Only enter a number from the list.')
-        return choice
 
     def review(self):
         ''' The review sub-program '''
@@ -956,7 +964,7 @@ class Program:
                 sys.exit('Path to current grade spreadsheet not provided ' +
                          'through the \'--current\' option or configuration ' +
                          'file. Abort.')
-        data.export()
+        data.export(self.args.inplace)
         TAGradeSheets.from_published(data, self.config).write(self.args.inplace)
 
     def new_spreadsheet(self):
@@ -974,6 +982,8 @@ if __name__ == '__main__':
     roster_gen_p.add_argument('--checkpoints',
                               help='checkpoints for the lab, one after another, separated only by spaces',
                               nargs='+')
+    # roster_gen_p.add_argument('--backend', nargs=1,
+    #                           help='backend for PDF generation')
     roster_gen_p.add_argument('LAB', help='lab number. Just the number.')
     roster_gen_p.add_argument('DATA', help='path to the Canvas exported CSV file')
     merge_p = sub_ps.add_parser('merge', help='merge Canvas data with latest data')
@@ -982,12 +992,14 @@ if __name__ == '__main__':
                          help='path to the grading sheet TAs filled out')
     merge_p.add_argument('--inplace',
                          action='store_true',
-                         help='overwrite the TA grading sheet with an updated version')
+                         help='overwrite the TA grading sheet with an updated version if there is conflict')
     new_spreadsheet_p = sub_ps.add_parser('new-spreadsheet',
                                           help='new grading spreadsheet for the shared drive')
     new_spreadsheet_p.add_argument('DATA', help='path to the Canvas exported CSV file')
     grade_review_p = sub_ps.add_parser('review', help='generate grading spreadsheets')
     grade_review_p.add_argument('DATA', help='path to the current data spreadsheet')
+    # grade_review_p.add_argument('--backend', nargs=1,
+    #                             help='backend for PDF generation')
     edit_config_p = sub_ps.add_parser('edit-config',
                                       help='edit the configuration file')
     reset_p = sub_ps.add_parser('reset', help='remove configuration file')
