@@ -497,7 +497,8 @@ class MaybeOverwrite(abc.ABC):
 
     def maybe_overwrite(self, fpath, inplace):
         '''
-        Write to the given path. Renames output by appending a number to the path if destination already exists unless the inplace flag is True.
+        Write to the given path. Renames output by appending a number to the
+        path if destination already exists unless the inplace flag is True.
 
         Parameters
         ----------
@@ -746,6 +747,7 @@ class TAGradeSheets(MaybeOverwrite):
             n = PublishedData.section_number(section)
             r = r'(^.*(C|c)onclusion.*\(\d+\)$|Student)'
             sheet = grading_sheet.filter(regex=r).copy()
+            # For TA grading sheets we put first-name before last-name
             sheet['Student'] = sheet['Student'].apply(lambda x: x.canonicalize())
             sheets[n] = sheet
         obj = cls(None, config)
