@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-# TODO: switch to first name-last name in TA grade sheet (breaking change)
 # TODO: group TA grade sheets by TA names instead of by section for easier
 # access when there are 40 sections (breaking change)
 # TODO: commandline option for output path
@@ -357,6 +356,50 @@ class RostersWriter:
             writer.write(parent, fname, codegen.run())
 
 
+class StudentName:
+    ''' Abstract representation of student names '''
+
+    def __init__(self, name):
+        '''
+        Parameters
+        ----------
+            name : string
+                Student name in either first-name first or last-name first form
+        '''
+        self.string = name
+        try:
+            last_name, first_name = name.split(',')
+            self.full_name_fnf = None
+            self.last_name = last_name.strip()
+            self.first_name = first_name.strip()
+        except ValueError:
+            self.full_name_fnf = name
+            self.last_name = None
+            self.first_name = None
+
+    def __str__(self):
+        ''' Returns the string from which the object is initialized '''
+        return self.string
+
+    def __lt__(self, other):
+        return self.canonical() < other.canonical()
+
+    def __hash__(self):
+        ''' Hash with the canonical form '''
+        return hash(self.canonical())
+
+    def canonicalize(self):
+        ''' Turn name into its canonical form '''
+        return StudentName(self.canonical())
+
+    def canonical(self):
+        ''' We treat first-name first as the canonical form '''
+        if self.full_name_fnf is None:
+            return ' '.join((self.first_name, self.last_name))
+        else:
+            return self.full_name_fnf
+
+
 class Roster:
     '''
     A class of objects that encapsulates data for a single section and is
@@ -423,10 +466,8 @@ class Rosters:
             Roster: object that contains all the data for the roster of a section
         '''
         section_number = PublishedData.section_number(section)
-        # Canvas formats student names last-name first, and we want to format
-        # them first-name first
-        students = [' '.join(reversed(student.split(', ')))
-                    for student in self.data.loc[section]['Student']]
+        # Student names on the generated rosters are formatted first-name first
+        students = [name.canonicalize() for name in self.data.loc[section]['Student']]
         roster = Roster(section_number, students)
         roster.set_groups()
         return roster
@@ -580,6 +621,7 @@ class PublishedData(MaybeOverwrite):
                               .filter(regex=rs, axis=1) \
                               .set_index('Section', drop=False) \
                               .filter(regex=r'\[\d+\]$', axis=0)
+            self.data['Student'] = self.data['Student'].apply(lambda x: StudentName(x))
         except OSError:
             sys.exit('"{}" does not exist. Check your input path.'.format(fpath))
 
@@ -599,9 +641,8 @@ class PublishedData(MaybeOverwrite):
         '''
         sheets = dict()
         for section in set(self.data.index):
-            grading_sheet = self.data.loc[section].set_index('Student', drop=False)
             n = self.section_number(section)
-            sheets[n] = grading_sheet
+            sheets[n] = self.data.loc[section].set_index('Student', drop=False)
         current_data = TAGradeSheets(current_data_fpath, self.config)
         for section, sheet in current_data.data.items():
             sheets[section].update(sheet.set_index('Student', drop=False))
@@ -672,11 +713,16 @@ class TAGradeSheets(MaybeOverwrite):
             self.data = dict()
             for section, sheet in excel.items():
                 section_number = int(section.split(' ')[1])
-                # drop rows where the student name is blank (most likely TAs put
-                # an extra row for stats)
-                self.data[section_number] = sheet.set_index('Student') \
-                                                 .drop(labels=np.nan, axis=0) \
-                                                 .reset_index()
+                try:
+                    # drop rows where the student name is blank (most likely TAs
+                    # put an extra row for stats)
+                    data = sheet.set_index('Student') \
+                                .drop(labels=numpy.nan, axis=0) \
+                                .reset_index()
+                except KeyError:
+                    data = sheet
+                data['Student'] = data['Student'].apply(lambda x: StudentName(x))
+                self.data[section_number] = data
 
     @classmethod
     def from_published(cls, published, config):
@@ -697,9 +743,11 @@ class TAGradeSheets(MaybeOverwrite):
         sheets = dict()
         for section in set(published.data.index):
             grading_sheet = published.data.loc[section].sort_values(by=['Student'])
-            n = published.section_number(section)
+            n = PublishedData.section_number(section)
             r = r'(^.*(C|c)onclusion.*\(\d+\)$|Student)'
-            sheets[n] = grading_sheet.filter(regex=r)
+            sheet = grading_sheet.filter(regex=r).copy()
+            sheet['Student'] = sheet['Student'].apply(lambda x: x.canonicalize())
+            sheets[n] = sheet
         obj = cls(None, config)
         obj.data = sheets
         return obj
@@ -1091,6 +1139,9 @@ if __name__ == '__main__':
     new_spreadsheet_p = sub_ps.add_parser('new-spreadsheet',
                                           help='new grading spreadsheet for the shared drive')
     new_spreadsheet_p.add_argument('DATA', help='path to the Canvas exported CSV file')
+    new_spreadsheet_p.add_argument('--inplace',
+                                   action='store_true',
+                                   help='overwrite if there is conflict')
     grade_review_p = sub_ps.add_parser('review', help='generate grade review report')
     grade_review_p.add_argument('DATA', help='path to the current data spreadsheet')
     # grade_review_p.add_argument('--backend', nargs=1,
