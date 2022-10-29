@@ -96,7 +96,7 @@ with all the recognized keys:
 ```toml
 # This is essential for grade review, optional for other functions
 [ta-assignment]
-# LHS is TA name; RHS is list of section numbers
+# LHS is TA name that cannot contain spaces; RHS is list of section numbers
 George = [3, 5, 9, 12]
 Liz = [4, 6, 10, 11]
 Chuck = [1, 2, 7, 8]
@@ -128,13 +128,23 @@ grade-review = '/Users/maclee/Documents/code/1l-tools-tools/Grade Review'
 # Examples
 
 ```sh
-1l-tools edit-config
+$ 1l-tools edit-config
+$ 1l-tools reset
+$ 1l-tools rosters 1 /path/to/canvas.csv
+$ 1l-tools rosters 2 /path/to/canvas.csv --checkpoints A7 A8 C13 D5
+$ 1l-tools review /path/to/grades.xlsx
+$ 1l-tools merge /path/to/canvas.csv
+$ 1l-tools merge /path/to/canvas.csv --current /path/to/grades.xlsx
+$ 1l-tools merge /path/to/canvas.csv --inplace
+$ 1l-tools merge /path/to/canvas.csv --current /path/to/grades.xlsx --inplace
+```
+
+# Uninstall
+To remove the configuration file(s), run
+```sh
 1l-tools reset
-1l-tools rosters 1 /path/to/canvas.csv
-1l-tools rosters 2 /path/to/canvas.csv --checkpoints A7 A8 C13 D5
-1l-tools review /path/to/grades.xlsx
-1l-tools merge /path/to/canvas.csv
-1l-tools merge /path/to/canvas.csv --current /path/to/grades.xlsx
-1l-tools merge /path/to/canvas.csv --inplace
-1l-tools merge /path/to/canvas.csv --current /path/to/grades.xlsx --inplace
+```
+If you used `pip` to set up your system, simply run
+```sh
+pip uninstall 1l-tools
 ```
