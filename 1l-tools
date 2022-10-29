@@ -11,6 +11,7 @@
 
 import abc
 import argparse
+import functools
 import io
 import itertools
 import math
@@ -449,8 +450,8 @@ class Rosters:
         ----------
             data: PublishedData
         '''
-        self.data = data.data
-        self.rosters = map(self.generate_roster, set(self.data.index))
+        self.data = data
+        self.rosters = map(self.generate_roster, self.data.section_numbers)
 
     def generate_roster(self, section):
         '''
@@ -465,10 +466,9 @@ class Rosters:
         ----------
             Roster: object that contains all the data for the roster of a section
         '''
-        section_number = PublishedData.section_number(section)
         # Student names on the generated rosters are formatted first-name first
-        students = [name.canonicalize() for name in self.data.loc[section]['Student']]
-        roster = Roster(section_number, students)
+        students = [name.canonicalize() for name in self.data.students[section]]
+        roster = Roster(section, students)
         roster.set_groups()
         return roster
 
@@ -478,8 +478,8 @@ class Rosters:
 
 class MaybeOverwrite(abc.ABC):
     '''
-    A class of classes that automatically renames output if there is a name
-    conflict on disk
+    A metaclass that automatically renames output if there is a name conflict on
+    disk
     '''
 
     @abc.abstractmethod
@@ -625,6 +625,26 @@ class PublishedData(MaybeOverwrite):
             self.data['Student'] = self.data['Student'].apply(lambda x: StudentName(x))
         except OSError:
             sys.exit('"{}" does not exist. Check your input path.'.format(fpath))
+
+    @property
+    @functools.lru_cache
+    def students(self):
+        '''
+        List of students by section
+
+        Returns
+        ----------
+            dict[int, string]
+        '''
+        students = self.data['Student']
+        sections = self.data.index
+        return dict((self.section_number(s), list(students[s].squeeze()))
+                    for s in sections)
+
+    @property
+    def section_numbers(self):
+        ''' List of section numbers '''
+        return list(self.section_number(s) for s in set(self.data.index))
 
     @property
     def quizzes(self):
