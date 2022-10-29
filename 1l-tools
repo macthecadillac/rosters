@@ -1,4 +1,7 @@
 #!/usr/bin/env python
+# TODO: switch to first name-last name in TA grade sheet (breaking change)
+# TODO: group TA grade sheets by TA names instead of by section for easier
+# access when there are 40 sections (breaking change)
 # TODO: commandline option for output path
 # TODO: pdf backend toggle
 # TODO: avoid sequential if tectonic has been initialized
@@ -87,6 +90,7 @@ class CodeGen:
 
     @classmethod
     def from_code(cls, code, lab, checkpoints):
+        ''' Alternative constructor of the class from given LaTeX code '''
         obj = cls(None, lab, checkpoints)
         obj.code = code
         return obj
@@ -197,6 +201,7 @@ class PDFWriter:
     '''
 
     def __init__(self):
+        ''' Initializer for PDFwriter objects '''
         self.procs = dict()
         self.cwd = os.getcwd()
         self.sequential = True
@@ -208,6 +213,20 @@ class PDFWriter:
         self.clean()
 
     def call_ext(self, cmd, parent_dir, fname, src):
+        '''
+        Call external program to compile PDF
+
+        Parameters
+        ----------
+            cmd : list[str]
+                Command to be executed
+            parent_dir : string
+                Path of the parent directory
+            fname : string
+                Name of the file to be written sans extension
+            src : string
+                LaTeX source code
+        '''
         src_fname = '{}.tex'.format(fname)
         tmp_dir = tempfile.TemporaryDirectory()
         os.chdir(tmp_dir.name)
@@ -417,12 +436,36 @@ class Rosters:
 
 
 class MaybeOverwrite(abc.ABC):
+    '''
+    A class of classes that automatically renames output if there is a name
+    conflict on disk
+    '''
 
     @abc.abstractmethod
     def write_to_path(self, fpath):
+        '''
+        A method to write to the designated path that a child class must
+        provide
+
+        Parameters
+        ----------
+            fpath : string
+                Path to destination
+        '''
         pass
 
     def maybe_overwrite(self, fpath, inplace):
+        '''
+        Write to the given path. Renames output by appending a number to the path if destination already exists unless the inplace flag is True.
+
+        Parameters
+        ----------
+            fpath : string
+                Path to destination
+            inplace : bool
+                Flag to indicate if we should overwrite or rename if there is
+                conflict
+        '''
         prefix, ext = os.path.splitext(fpath)
         if os.path.exists(fpath) and not inplace:
             for i in itertools.count(1):
@@ -450,6 +493,8 @@ class SummaryAttendanceSheet(MaybeOverwrite):
                 Lab number
             checkpoints : list[str]
                 List of checkpoints
+            config : Configuration
+                Loaded configuration file
         '''
         self.lab = lab
         self.checkpoints = checkpoints
@@ -482,6 +527,10 @@ class SummaryAttendanceSheet(MaybeOverwrite):
         self.sheets[roster.section] = pandas.read_csv(io.StringIO('\n'.join(sheet)), sep=';')
 
     def write_to_path(self, fpath):
+        '''
+        Concrete method implementation for MaybeOverwrite. See corresponding
+        docs.
+        '''
         summary_page = [',']
         summary_page += ['Lab {},Check if complete'.format(self.lab)]
         summary_page += ['Section {}'.format(s) for s in sorted(self.sheets.keys())]
@@ -560,14 +609,24 @@ class PublishedData(MaybeOverwrite):
 
     def write_to_path(self, fpath):
         '''
-        Export data to a CSV file to be uploaded to Canvas
+        Concrete method implementation for MaybeOverwrite. See corresponding
+        docs.
         '''
         # drop quiz data since that has never been updated
         r = r'(^.*(C|c)onclusion.*\(\d+\)$|Student|Section|ID|SIS User ID|SIS Login ID)'
         data = self.data.reset_index(drop=True).filter(regex=r, axis=1)
         data.to_csv(fpath, index=False)
 
-    def export(self, inplace):
+    def write(self, inplace):
+        '''
+        Export data to a CSV file to be uploaded to Canvas
+
+        Parameters
+        ----------
+            inplace : bool
+                Flag to indicate if we should overwrite or rename if there is
+                conflict
+        '''
         self.maybe_overwrite('updated-for-canvas.csv', inplace)
 
     @staticmethod
@@ -590,7 +649,10 @@ class PublishedData(MaybeOverwrite):
 
 
 class TAGradeSheets(MaybeOverwrite):
-    ''' In-memory representation of the latest data on the shared drive '''
+    '''
+    In-memory representation of the Excel spreadsheet for TA use on the shared
+    drive
+    '''
 
     def __init__(self, fpath, config):
         '''
@@ -607,14 +669,30 @@ class TAGradeSheets(MaybeOverwrite):
                 excel = pandas.read_excel(fpath, sheet_name=None)
             except OSError:
                 sys.exit('Invalid path: {}'.format(fpath))
-            self.data = dict((int(section.split(' ')[1]), sheet)
-                             for section, sheet in excel.items())
+            self.data = dict()
+            for section, sheet in excel.items():
+                section_number = int(section.split(' ')[1])
+                # drop rows where the student name is blank (most likely TAs put
+                # an extra row for stats)
+                self.data[section_number] = sheet.set_index('Student') \
+                                                 .drop(labels=np.nan, axis=0) \
+                                                 .reset_index()
 
     @classmethod
     def from_published(cls, published, config):
         '''
-        Generate Excel spreadsheet to be uploaded for TAs to fill out from
-        Canvas data
+        Alternative constructor for the class using exported data from Canavs
+
+        Parameters
+        ----------
+            published : PublishedData
+                Parsed data exported from Canvas
+            config : Configuration
+                The loaded configuration file
+
+        Returns
+        ----------
+            obj : TAGradeSheets
         '''
         sheets = dict()
         for section in set(published.data.index):
@@ -627,6 +705,10 @@ class TAGradeSheets(MaybeOverwrite):
         return obj
 
     def write_to_path(self, fpath):
+        '''
+        Concrete method implementation for MaybeOverwrite. See corresponding
+        docs.
+        '''
         with pandas.ExcelWriter(fpath) as writer:
             for section, sheet in sorted(self.data.items()):
                 sheet_name = 'section {}'.format(section)
@@ -638,6 +720,14 @@ class TAGradeSheets(MaybeOverwrite):
                 worksheet.freeze_panes = worksheet['B1']
 
     def write(self, inplace):
+        '''
+        Write to disk as Excel sheet
+
+        Parameters
+        ----------
+            inplace : bool
+                Overwrite existing file if true
+        '''
         try:
             fpath = self.config.paths['current-grade-sheet']
             if os.path.splitext(fpath)[1] != '.xlsx':
@@ -795,10 +885,11 @@ class TAGradeSheets(MaybeOverwrite):
 
 
 class Configuration:
+    ''' A class of objects to represent the configuration file in memory '''
 
     @classmethod
     def load(cls):
-        ''' In-memory representation of the parsed configuration '''
+        ''' Parse and load configuration file '''
         obj = cls()
         try:
             obj.parsed = toml.load(Configuration.path())
@@ -827,14 +918,17 @@ class Configuration:
 
     @property
     def paths(self):
+        ''' The "paths" configuration key '''
         return self.parsed['paths']
 
     @property
     def checkpoints(self):
+        ''' The "checkpoints" configuration key '''
         return self.parsed['checkpoints']
 
     @property
     def ta_assignment(self):
+        ''' The "ta-assignment" configuration key '''
         return self.parsed['ta-assignment']
 
     @property
@@ -933,6 +1027,7 @@ class Program:
 
     @staticmethod
     def select(msg, choices):
+        ''' Displays a selection prompt for a list of items '''
         for i, choice in sorted(choices.items()):
             print('  {}: {}'.format(i + 1, choice))
         while True:
@@ -964,7 +1059,7 @@ class Program:
                 sys.exit('Path to current grade spreadsheet not provided ' +
                          'through the \'--current\' option or configuration ' +
                          'file. Abort.')
-        data.export(self.args.inplace)
+        data.write(self.args.inplace)
         TAGradeSheets.from_published(data, self.config).write(self.args.inplace)
 
     def new_spreadsheet(self):
@@ -996,7 +1091,7 @@ if __name__ == '__main__':
     new_spreadsheet_p = sub_ps.add_parser('new-spreadsheet',
                                           help='new grading spreadsheet for the shared drive')
     new_spreadsheet_p.add_argument('DATA', help='path to the Canvas exported CSV file')
-    grade_review_p = sub_ps.add_parser('review', help='generate grading spreadsheets')
+    grade_review_p = sub_ps.add_parser('review', help='generate grade review report')
     grade_review_p.add_argument('DATA', help='path to the current data spreadsheet')
     # grade_review_p.add_argument('--backend', nargs=1,
     #                             help='backend for PDF generation')
