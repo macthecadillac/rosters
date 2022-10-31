@@ -1,4 +1,6 @@
 #!/usr/bin/env python
+# TODO: add status to indicate how much a TA has finished for grade review in
+# case they couldn't finish all grading by Monday
 # TODO: group TA grade sheets by TA names instead of by section for easier
 # access when there are 40 sections (breaking change)
 # TODO: commandline option for output path
