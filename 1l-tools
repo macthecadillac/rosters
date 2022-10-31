@@ -675,7 +675,7 @@ class TAGradeSheets(MaybeOverwrite):
                 # drop rows where the student name is blank (most likely TAs put
                 # an extra row for stats)
                 self.data[section_number] = sheet.set_index('Student') \
-                                                 .drop(labels=np.nan, axis=0) \
+                                                 .drop(labels=numpy.nan, axis=0) \
                                                  .reset_index()
 
     @classmethod
