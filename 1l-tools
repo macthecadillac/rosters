@@ -1,4 +1,5 @@
 #!/usr/bin/env python
+# TODO: possibly create report in spreadsheet instead of making pdf
 # TODO: add status to indicate how much a TA has finished for grade review in
 # case they couldn't finish all grading by Monday
 # TODO: group TA grade sheets by TA names instead of by section for easier
@@ -371,7 +372,7 @@ class StudentName:
         '''
         self.string = name
         try:
-            last_name, first_name = name.split(',')
+            [last_name, first_name] = name.split(',')
             self.full_name_fnf = None
             self.last_name = last_name.strip()
             self.first_name = first_name.strip()
@@ -390,6 +391,12 @@ class StudentName:
     def __hash__(self):
         ''' Hash with the canonical form '''
         return hash(self.canonical())
+
+    def __eq__(self, other):
+        try:
+            return self.canonical() == other.canonical()
+        except AttributeError:
+            return False
 
     def canonicalize(self):
         ''' Turn name into its canonical form '''
