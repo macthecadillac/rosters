@@ -1,0 +1,6 @@
+.stack-work/
+*~
+.directory
+.DS_STORE
+*.csv
+*.toml
