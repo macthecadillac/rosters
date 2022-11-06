@@ -1,0 +1,9 @@
+(executable
+ (name Main)
+ (public_name lab-tools)
+ (modules CodeGen Rosters Name PublishedData Main)
+ (libraries containers angstrom cmdliner))
+
+(env
+  (release
+    (ocamlopt_flags (:standard -O3 -unbox-closures))))
