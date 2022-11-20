@@ -1,8 +1,8 @@
 (executable
  (name Main)
  (public_name lab-tools)
- (modules CodeGen Rosters Name PublishedData Main)
- (libraries containers angstrom cmdliner))
+ (modules CodeGen Rosters Common Data Main Config)
+ (libraries containers angstrom cmdliner csv))
 
 (env
   (release

@@ -1,10 +1,14 @@
 open Containers
+open Fun
 open Fun.Infix
-
-module IntMap = Map.Make(Int)
+open Common
 
 type t = { section : Int.t;
            groups : Name.t List.t IntMap.t }
+
+let section t = t.section
+
+let groups t = t.groups
 
 let shuffle l =
   let open Random in
@@ -15,7 +19,9 @@ let shuffle l =
   match l with
   | [] -> []
   | hd::tl ->
-      run (List.fold_left step (pure (IntMap.singleton 0 hd)) (List.mapi Pair.make tl))
+      let gen = pure (IntMap.singleton 0 hd) in
+      let numbered = List.mapi (fun i -> Pair.make (i + 1)) tl in
+      run (List.fold_left step gen numbered)
         |> IntMap.to_list
         |> List.map (fun (_, x) -> x)
 
@@ -28,3 +34,12 @@ let new_roster section students =
     |> List.fold_left (fun acc (i, n) ->
         IntMap.add i (n :: IntMap.get_or ~default:[] i acc) acc) IntMap.empty
   in { section; groups }
+
+let of_data =
+  let open Data.Published in
+  let open Option in
+  Seq.of_list
+  %> Seq.map (fun x -> x.section, [x.name])
+  %> SectionMap.add_seq_with ~f:(fun _ a b -> a @ b) SectionMap.empty
+  %> SectionMap.to_seq
+  %> Seq.filter_map (fun (s, l) -> Section.to_int s >>= pure % flip new_roster l)

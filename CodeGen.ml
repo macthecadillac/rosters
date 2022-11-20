@@ -2,18 +2,16 @@ open Containers
 open Rosters
 open Fun
 
-module IntMap = Map.Make(Int)
+open Common
 
-type t = { lab : Int.t;
-           checkpoints : String.t List.t;
-           code : String.t List.t IntMap.t }
+type t = String.t List.t IntMap.t
 
 let header = ["\\documentclass[11pt]{article}";
               "\\usepackage[margin=0.85in]{geometry}";
               "\\usepackage{multirow}";
               "\\usepackage{tabularx}";
               "\\usepackage{makecell}";
-              "\\usepackage[sfdefault; lf]{carlito}";
+              "\\usepackage[sfdefault, lf]{carlito}";
               "\\newcolumntype{?}{!{\\vrule width 2pt}}";
               "\\newcolumntype{C}{>{\\centering\\arraybackslash}X}";
               "\\setlength\\arrayrulewidth{1pt}";
@@ -23,43 +21,50 @@ let header = ["\\documentclass[11pt]{article}";
 
 let footer = ["\\end{document}"]
 
-let empty = { lab = 0; checkpoints = []; code = IntMap.empty }
+let empty = IntMap.empty
 
-let of_code code lab checkpoints = { code; lab; checkpoints }
+let ( <+> ) l r = IntMap.union (fun _ v1 _ -> Some v1) l r
 
-let add_group t section group = function
+let add_section_code pos section c =
+  IntMap.update section (match pos with
+    | `Pre -> (function Some l -> Some (c @ l) | None -> Some c)
+    | `Post -> (function Some l -> Some (l @ c) | None -> Some c))
+
+let add_group t section checkpoints group students =
+  match List.map Name.canonical students with
   | [] -> t
   | (first_student :: rest) as l ->
       let nrows = List.length l in
-      let n = List.length t.checkpoints in
+      let n = List.length checkpoints in
       let seps = String.repeat "& " (n - 1) in
-      let section_code = IntMap.find section t.code in
-      let first_row = Printf.sprintf "      & & \\multirow{{%i}}{{*}}{{\\textbf{{%i}}}} & %s & & %s\\\\" nrows group first_student seps in
+      let first_row = Printf.sprintf "      & & \\multirow{%i}{*}{\\textbf{%i}} & %s & & %s\\\\" nrows group first_student seps in
       let rows = List.flat_map (fun student ->
-        [Printf.sprintf "      \\cline{{1-2}}\\cline{{4-%i}}" (n + 5);
+        [Printf.sprintf "      \\cline{1-2}\\cline{4-%i}" (n + 5);
          Printf.sprintf "      & & & %s & & %s\\\\" student seps])
         rest in
       let end_ = ["      \\hline"] in
-      let code = IntMap.add section (section_code @ first_row :: rows @ end_) t.code in
-      { t with code }
+      add_section_code `Post section (first_row :: rows @ end_) t
 
-let section_codegen t roster =
-  let n = List.length t.checkpoints in
+let of_section lab checkpoints roster =
+  let n = List.length checkpoints in
+  let section = Rosters.section roster in
   let begin_ = [
       "\\begin{center}";
       "  \\begin{tabularx}{\\textwidth}{?>{\\hsize=5em}C|c|c|X|c|" ^
       (* adjust the table column setup based on the number of checkpoints *)
-      (String.concat "|" @@ List.replicate n "c");
-      (* "|".join(["c"] * n) + "?}"; *)
+      (String.concat "|" @@ List.replicate n "c") ^ "?}";
       "    \\Xhline{2pt}";
-      (Printf.sprintf "    \\multicolumn{{3}}{{?l}}{{\\textbf{{Lab %i}}}} & " t.lab) ^
-      (* (Printf.sprintf "\\multicolumn{{1}}{{C}}{{\\textbf{{Section %i}}}} " roster.section) ^ *)
-      Printf.sprintf "& \\multicolumn{{%i}}{{l?}}{{\\textbf{{Date:}}}} \\\\" (n + 1);
+      (Printf.sprintf "    \\multicolumn{3}{?l}{\\textbf{Lab %i}} & " lab) ^
+      (Printf.sprintf "\\multicolumn{1}{C}{\\textbf{Section %i}} " section) ^
+      Printf.sprintf "& \\multicolumn{%i}{l?}{\\textbf{Date:}} \\\\" (n + 1);
       "    \\Xhline{2pt}";
       "    \\textbf{Signature} & \\textbf{Late} & \\textbf{Group} & " ^
       "\\multicolumn{1}{c|}{\\textbf{Student}} & \\textbf{TA Check} & " ^
       (* put in the checkpoints in the table column headings *)
-      (* " & ".join("\\textbf{{{}}}".format(c).replace("&"; "\&") for c in self.checkpoints) + *)
+      (checkpoints
+      |> List.map (Printf.sprintf "\\textbf{%s}" %> String.replace ~which:`All ~sub:"&" ~by:"\\&")
+      |> String.concat " & ")
+      ;
       " \\\\";
       "    \\Xhline{2pt}"] in
   (* LaTeX code at the end of a table *)
@@ -67,21 +72,17 @@ let section_codegen t roster =
       "    \\Xhline{2pt}";
       "  \\end{tabularx}";
       "\\end{center}";
-      "\\newpage"]
-  in ()
+      "\\newpage"] in
+  let groups = Rosters.groups roster in
+  IntMap.fold (fun n l acc -> add_group acc section checkpoints n l) groups empty
+  |> add_section_code `Pre section begin_
+  |> add_section_code `Post section end_
 
 (* TODO: remove last \newpage *)
-let run { code; _ } =
+let to_string code =
   IntMap.to_list code
     |> List.sort (fun (a, _) (b, _) -> Int.compare a b)
     |> List.map (fun (_, b) -> b)
     |> List.concat
+    |> fun l -> header @ l @ footer
     |> String.concat "\n"
-
-let ( + ) l r =
-  let code = IntMap.union (fun _ v1 _ -> Some v1) l.code r.code in
-  let checkpoints = if List.is_empty l.checkpoints then r.checkpoints else l.checkpoints in
-  let lab = if l.lab <> 0 then l.lab else l.lab in
-  { lab; code; checkpoints }
-
-(* let init roster lab checkpoints = { *)
