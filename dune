@@ -1,9 +1,1 @@
-(executable
- (name Main)
- (public_name lab-tools)
- (modules CodeGen Rosters Common Data Main Config)
- (libraries containers angstrom cmdliner csv))
-
-(env
-  (release
-    (ocamlopt_flags (:standard -O3 -unbox-closures))))
+(dirs :standard \ target)

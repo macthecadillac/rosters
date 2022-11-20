@@ -1,26 +1,13 @@
-(lang dune 3.5)
-
-(name lab_tools)
+(lang dune 2.0)
+(name lab-tools)
 
 (generate_opam_files true)
 
-(source
- (github username/reponame))
-
-(authors "Author Name")
-
-(maintainers "Maintainer Name")
-
-(license LICENSE)
-
-(documentation https://url/to/documentation)
-
 (package
- (name lab_tools)
- (synopsis "A short synopsis")
- (description "A longer description")
- (depends ocaml dune)
- (tags
-  (topics "to describe" your project)))
-
-; See the complete stanza docs at https://dune.readthedocs.io/en/stable/dune-files.html#dune-project
+ (name lab-tools)
+ (synopsis "FIXME:")
+ (description "FIXME:")
+ (depends
+  (ocaml (>= "4.03.0"))
+  (dune (>= "1.5"))
+  conf-rust))

@@ -1,5 +1,7 @@
 open Containers
 
+external hello_world: unit -> string = "hello_world"
+
 let () =
   Data.Published.of_string "/Users/maclee/Documents/code/lab_tools/test.csv"
   |> Rosters.of_data

@@ -1,2 +1,4 @@
 (lang dune 3.5)
 (profile release)
+(context (opam (switch 4.14.0)
+               (merlin)))
