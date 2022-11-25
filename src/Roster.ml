@@ -3,7 +3,7 @@ open Fun
 open Fun.Infix
 open Common
 
-type t = { section : Int.t;
+type t = { section : Section.t;
            groups : Name.t List.t IntMap.t }
 
 let section t = t.section
@@ -35,11 +35,9 @@ let new_roster section students =
         IntMap.add i (n :: IntMap.get_or ~default:[] i acc) acc) IntMap.empty
   in { section; groups }
 
-let of_data =
-  let open Data.Published in
-  let open Option in
-  Seq.of_list
-  %> Seq.map (fun x -> x.section, [x.name])
-  %> SectionMap.add_seq_with ~f:(fun _ a b -> a @ b) SectionMap.empty
-  %> SectionMap.to_seq
-  %> Seq.filter_map (fun (s, l) -> Section.to_int s >>= pure % flip new_roster l)
+let of_data l =
+  Seq.of_list l
+  |> Seq.map (fun x -> Record.section x, [Record.name x])
+  |> SectionMap.add_seq_with ~f:(fun _ a b -> a @ b) SectionMap.empty
+  |> SectionMap.to_seq
+  |> Seq.map (fun (s, l) -> new_roster s l)

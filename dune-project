@@ -10,4 +10,5 @@
  (depends
   (ocaml (>= "4.03.0"))
   (dune (>= "1.5"))
-  conf-rust))
+  conf-rust
+  conf-libssl))

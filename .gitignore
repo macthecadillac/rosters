@@ -1,9 +1,9 @@
 **/*.xlsx
 **/*.csv
-**/*.toml
 **/.directory
 **/.DS_STORE
 _build/*
 bin/
 lib/
 test/
+src/rust_bindgen.ml*

@@ -1,0 +1,18 @@
+[package]
+name = "lab-tools"
+version = "0.1.0"
+authors = ["Mac Lee <mal004@ucsd.edu>"]
+edition = "2021"
+
+[lib]
+crate-type = ["staticlib"]
+
+[dependencies]
+ocaml = "^1.0.0-beta"
+ocaml-interop = "0.8.8"
+xlsxwriter = "0.5.0"
+calamine = "0.19"
+derive_more = "0.99"
+
+[build-dependencies]
+ocaml-build = {version = "^1.0.0-beta"}

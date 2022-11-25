@@ -2,33 +2,28 @@ open Containers
 
 type 'a printer = Format.formatter -> 'a -> unit
 
-module IntMap = Map.Make(Int)
+module IntMap = Map.Make (Int)
 
 module Name = struct
   open Fun.Infix
 
-  exception ImpossibleBranch
-
   type u = { first : String.t; last : String.t }
 
-  (* fnf = full name, first name first *)
-  type t = { name : u Option.t; fnf : String.t Option.t; str : String.t }
+  (* String.t is the original string *)
+  type t = FirstLast of u * String.t | Formatted of String.t
 
-  let to_string { str; _ } = str
+  let to_string = function FirstLast (_, s)  | Formatted s -> s
 
   let of_string s =
     let open String in
-    match String.split_on_char ',' s with
-    | [name] -> Some { name = None; fnf = Some (trim name); str = s }
-    | [l; f] -> Some { name = Some { first = trim f; last = trim l };
-                       fnf = None;
-                       str = s }
+    match split_on_char ',' s with
+    | [name] -> Some (Formatted name) 
+    | [l; f] -> Some (FirstLast ({ first = trim f; last = trim l }, s))
     | _ -> None
 
   let canonical = function
-    | { name = Some { first; last }; _ } -> Printf.sprintf "%s %s" first last
-    | { fnf = Some name; _ } -> name
-    | _ -> raise ImpossibleBranch
+    | FirstLast ({ first; last }, _) -> Printf.sprintf "%s %s" first last
+    | Formatted name -> String.trim name
 
   let canonicalize = canonical %> of_string %> Option.get_exn_or ""
 
@@ -40,21 +35,28 @@ end
 module Section = struct
   open Fun
 
-  type t = String.t
+  type t = { num : Int.t; str : String.t Option.t }
 
-  let of_string = id
+  let compare t1 t2 = Option.compare String.compare t1.str t2.str
 
-  let to_string = id
+  let to_int { num; _ } = num
 
-  let compare = String.compare
+  let of_int num = { num; str = None }
 
-  let to_int t =
+  let of_string str =
     let open Option in
-    String.split_on_char ' ' t |> List.rev |> flip List.nth_opt 1 >>= Int.of_string
+    String.split_on_char ' ' str
+      |> List.rev
+      |> flip List.nth_opt 1
+      >>= Int.of_string
+      >>= fun num -> pure { num; str = Some str }
 
-  let validate t = Option.(const t <$> to_int t)
+  let to_string { str; _ } = str
 
-  let pp fmt = Format.fprintf fmt "%a" String.pp
+  let pp fmt { str; num } =
+    match str with
+    | Some s -> Format.fprintf fmt "%a" String.pp s
+    | None -> Format.fprintf fmt "%i" num
 end
 
 module SectionMap = Map.Make (Section)
