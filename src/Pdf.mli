@@ -1,0 +1,1 @@
+val write : unit -> unit

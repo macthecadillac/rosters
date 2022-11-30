@@ -21,3 +21,5 @@ let () =
       match write_attendance_sheet rosters with
       | Error e -> print_endline e
       | Ok _ -> ()
+
+let () = Pdf.write ()
