@@ -1,14 +1,16 @@
 (rule
  (targets liblab_tools.a)
- (deps (glob_files *.rs))
+ (deps (glob_files_rec *.rs))
  (action
   (progn
-   (run cargo build --target-dir %{project_root}/../../target --release)
-   (run mv %{project_root}/../../target/release/liblab_tools.a liblab_tools.a))))
+   (run cargo build --manifest-path %{project_root}/../../lib/Cargo.toml --release)
+   (run mv %{project_root}/../../lib/target/release/liblab_tools.a liblab_tools.a))))
 
 (executable
  (name Main)
  (public_name lab-tools)
- (modules Main CodeGen Roster Common Record Config Xlsx AttendanceSheet)
- (libraries containers csv bos gg vg otoml)
+ (modules Main CodeGen Roster Common Record Config Xlsx AttendanceSheet Pdf Transformers Monads TypeClasses)
+ ; (preprocess (pps ppx_blob))
+ ; (preprocessor_deps (file Carlito.otf))
+ (libraries containers csv bos gg vg vg.pdf otoml)
  (foreign_archives lab_tools))

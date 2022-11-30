@@ -16,3 +16,9 @@ derive_more = "0.99"
 
 [build-dependencies]
 ocaml-build = {version = "^1.0.0-beta"}
+
+[profile.release]
+opt-level = "s"
+strip = "symbols"
+codegen-units = 1
+lto = true

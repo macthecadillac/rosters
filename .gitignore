@@ -4,6 +4,7 @@
 **/.DS_STORE
 _build/*
 bin/
-lib/
 test/
-src/rust_bindgen.ml*
+lib/src/rust_bindgen.ml*
+lib/target
+**/.cargo
