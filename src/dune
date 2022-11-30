@@ -9,7 +9,7 @@
 (executable
  (name Main)
  (public_name lab-tools)
- (modules Main CodeGen Roster Common Record Config Xlsx AttendanceSheet Pdf Transformers Monads TypeClasses)
+ (modules Main Roster Common Record Config Xlsx AttendanceSheet Pdf)
  ; (preprocess (pps ppx_blob))
  ; (preprocessor_deps (file Carlito.otf))
  (libraries containers csv bos gg vg vg.pdf otoml)
