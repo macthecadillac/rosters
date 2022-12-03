@@ -1,1 +1,1 @@
-val write : unit -> unit
+val write : Roster.t -> String.t

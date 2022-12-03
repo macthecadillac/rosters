@@ -8,3 +8,5 @@ test/
 lib/src/rust_bindgen.ml*
 lib/target
 **/.cargo
+*.pdf
+*.github/

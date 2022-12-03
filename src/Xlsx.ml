@@ -1,9 +1,10 @@
+(* TODO: Cell should contain cell indices *)
 type typography = Bold | Italic | Underline
 
 type color = Red | Blue | Green | Black
 
 module Content = struct
-  type t = Text of String.t | Float of Float.t
+  type t = Text of String.t | Float of float | Formula of String.t | Empty
 
   let to_string = function Text s -> Some s | _ -> None
 
@@ -11,14 +12,14 @@ module Content = struct
 end
 
 type cell = { typography : typography Option.t;
-                   color : color;
-                   font : String.t;
-                   content : Content.t}
+              color : color;
+              font : String.t;
+              content : Content.t}
 
 type sheet = { name : String.t;
-                    freeze_row : Int.t Option.t;
-                    freeze_col : Int.t Option.t;
-                    data : cell List.t List.t }
+               freeze_row : Int.t Option.t;
+               freeze_col : Int.t Option.t;
+               data : cell List.t List.t }
 
 external write: String.t -> sheet List.t -> (unit, String.t) Result.t = "write_xlsx"
 
@@ -40,6 +41,8 @@ let freeze_row row t = { t with freeze_row = Some row }
 let freeze_col col t = { t with freeze_col = Some col }
 
 let text_cell t = { empty_cell with content = Text t }
+
+let formula_cell t = { empty_cell with content = Formula t }
 
 let set_color color t = { t with color }
 

@@ -38,6 +38,40 @@ let new_roster section students =
 let of_data l =
   Seq.of_list l
   |> Seq.map (fun x -> Record.section x, [Record.name x])
-  |> SectionMap.add_seq_with ~f:(fun _ a b -> a @ b) SectionMap.empty
+  |> SectionMap.(add_seq_with ~f:(fun _ a b -> a @ b) empty)
   |> SectionMap.to_seq
   |> Seq.map (fun (s, l) -> new_roster s l)
+
+let to_xlsx lab checkpoints rosters =
+  let open List in
+  let open Xlsx in
+  let summary_page lab sections =
+    let header =
+      text_cell <$> [Format.sprintf "Lab %i" lab; "Check if complete"] in
+    let entries =
+      let+ s = sections in
+      Section.to_int s |> Format.sprintf "section %i" |> text_cell |> pure in
+    let data = header :: entries in
+    let name = "summary" in
+    Xlsx.new_sheet name data in
+  let to_sheets checkpoints roster =
+    let instructions = [
+       "Under the \"Signature\" column, leave blank if present, enter \"Absent\" if absent, describe circumstances if student left soon after quiz";
+       "Under the \"Late\" column, enter the amount of time if they are late" ] in
+    let instrs =
+      let+ s = instructions in
+      text_cell s |> set_color Red |> set_type Bold |> pure in
+    let header =
+      let+ h = ["Signature"; "Late"; "Group"; "Student"; "TA Check"] @ checkpoints in
+      text_cell h |> set_type Bold in
+    let rows =
+      let* (group, names) = IntMap.to_list roster.groups in
+      let+ name = names in
+      let g = Format.sprintf "%i" group in
+      [empty_cell; empty_cell; text_cell g; text_cell @@ Name.canonical name] in
+    let data = instrs @ [header] @ rows in
+    let name = Format.sprintf "section %i" @@ Section.to_int roster.section in
+    new_sheet name data in
+  let summary = summary_page lab (section <$> rosters) in
+  let sheets = (to_sheets checkpoints) <$> rosters in
+  summary :: sheets

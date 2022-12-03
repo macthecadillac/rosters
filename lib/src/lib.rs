@@ -1,12 +1,17 @@
+// TODO: Cell should contain cell indices
+// TODO: interface error type with OCaml for better error propagation
+// TODO: write formula to file
+// TODO: conditional formatting (when the relevant bindings are published)
 extern crate calamine;
 extern crate derive_more;
 extern crate xlsxwriter;
 
 use calamine::{Reader, open_workbook, Xlsx, DataType};
 use derive_more::{Display, From};
-use xlsxwriter::{FormatColor, FormatUnderline, Workbook};
+use xlsxwriter::{Format, FormatColor, FormatUnderline, Workbook};
 
 use std::collections::LinkedList;
+use std::convert::TryFrom;
 
 #[derive(ocaml::ToValue, ocaml::FromValue, Clone, Copy)]
 #[ocaml::sig("Bold | Italic | Underline")]
@@ -17,8 +22,22 @@ pub enum Typography { Bold, Italic, Underline }
 pub enum Color { Red, Blue, Green, Black }
 
 #[derive(ocaml::ToValue, ocaml::FromValue)]
-#[ocaml::sig("Text of String.t | Float of float | Empty")]
-pub enum Content { Text(String), Float(f64), Empty }
+#[ocaml::sig("Text of String.t | Float of float | Formula of String.t | Empty")]
+pub enum Content { Text(String), Float(f64), Formula(String), Empty }
+
+impl TryFrom<&DataType> for Content {
+    type Error = XlsxError;
+
+    fn try_from(datatype: &DataType) -> Result<Self, Self::Error> {
+        match datatype {
+            DataType::Int(i) => Ok(Content::Text(format!("{}", i))),
+            DataType::Float(f) => Ok(Content::Float(*f)),
+            DataType::String(s) => Ok(Content::Text(s.to_owned())),
+            DataType::Empty => Ok(Content::Empty),
+            _ => Err(XlsxError::UnsupportedDataType)
+        }
+    }
+}
 
 #[derive(ocaml::ToValue, ocaml::FromValue)]
 #[ocaml::sig("{ typography : typography Option.t;
@@ -55,6 +74,40 @@ pub enum XlsxError {
     UnsupportedDataType
 }
 
+struct FormatBuilder<'a>{ format: Format<'a> }
+
+impl<'a> FormatBuilder<'a> {
+    fn new(workbook: &'a Workbook) -> Self {
+        FormatBuilder { format: workbook.add_format() }
+    }
+
+    fn build(self) -> Format<'a> { self.format }
+
+    fn set_font(self, font: &'a str) -> Self {
+        FormatBuilder { format: self.format.set_font_name(font) }
+    }
+
+    fn maybe_set_type(self, typography: Option<Typography>) -> Self {
+        let format = match typography {
+            Some(Typography::Bold) => self.format.set_bold(),
+            Some(Typography::Italic) => self.format.set_italic(),
+            Some(Typography::Underline) => self.format.set_underline(FormatUnderline::Single),
+            None => self.format
+        };
+        FormatBuilder { format }
+    }
+
+    fn set_color(self, color: Color) -> Self {
+        let format = match color {
+            Color::Red => self.format.set_font_color(FormatColor::Red),
+            Color::Blue => self.format.set_font_color(FormatColor::Blue),
+            Color::Green => self.format.set_font_color(FormatColor::Green),
+            Color::Black => self.format.set_font_color(FormatColor::Black),
+        };
+        FormatBuilder { format }
+    }
+}
+
 #[ocaml::func]
 #[ocaml::sig("String.t -> xlsx_sheet List.t -> (unit, String.t) Result.t")]
 pub fn write_xlsx(filename: String, sheets: LinkedList<XlsxSheet>)
@@ -83,22 +136,15 @@ fn write_xlsx_with_error(filename: &str, sheets: LinkedList<XlsxSheet>)
             let i = i_.try_into()?;
             for (j_, cell) in row.iter().enumerate() {
                 let j = j_.try_into()?;
-                let f = workbook.add_format().set_font_name(&cell.font);
-                let f_ = match cell.typography {
-                        Some(Typography::Bold) => f.set_bold(),
-                        Some(Typography::Italic) => f.set_italic(),
-                        Some(Typography::Underline) => f.set_underline(FormatUnderline::Single),
-                        None => f
-                };
-                let format = match cell.color {
-                    Color::Red => f_.set_font_color(FormatColor::Red),
-                    Color::Blue => f_.set_font_color(FormatColor::Blue),
-                    Color::Green => f_.set_font_color(FormatColor::Green),
-                    Color::Black => f_.set_font_color(FormatColor::Black),
-                };
+                let format = FormatBuilder::new(&workbook)
+                    .set_font(&cell.font)
+                    .set_color(cell.color)
+                    .maybe_set_type(cell.typography)
+                    .build();
                 match &cell.content {
                     Content::Text(s) => ws.write_string(i, j, &s, Some(&format))?,
                     Content::Float(f) => ws.write_number(i, j, *f, Some(&format))?,
+                    Content::Formula(s) => ws.write_formula(i, j, &s, Some(&format))?,
                     Content::Empty => ()
                 }
             }
@@ -119,13 +165,7 @@ fn read_xlsx_with_error(filename: &str) -> Result<LinkedList<XlsxSheet>, XlsxErr
                 let typography = None;
                 let color = Color::Black;
                 let font = "Calibri".to_string();
-                let content = match cell {
-                    DataType::Int(i) => Content::Text(format!("{}", i)),
-                    DataType::Float(f) => Content::Float(*f),
-                    DataType::String(s) => Content::Text(s.to_owned()),
-                    DataType::Empty => Content::Empty,
-                    _ => Err(XlsxError::UnsupportedDataType)?
-                };
+                let content = cell.try_into()?;
                 cells.push(XlsxCell { typography, color, font, content });
             }
             list.push(cells.into_iter().collect::<LinkedList<_>>())
