@@ -202,7 +202,7 @@ let write_column_header chkpts img =
   put Length.(x, y + box_height) $> (widths, img)
 
 let write_group n names widths img =
-  let write_row nlines name widths img =
+  let write_row nlines name img =
     let* x, y = get in
     let nchkpts = List.length widths - 4 in
     let row = [Some (1, Regular, `C), "";
@@ -218,21 +218,21 @@ let write_group n names widths img =
       | Some (vlines, f, p) ->
           let bh = `H Length.(box_height * of_int vlines) in
           (* TODO: perhaps ReaderState is more appropriate *)
+          (* TODO: Reader.local *)
           let* st = get in
-          let* fs = asks snd in
+          let* font_size = asks snd in
           let gen = text_box s (`M w) bh (Some bw1) p in
           (* run Reader to apply custom settings for group numbers *)
-          let (x, y), tb = Monads.Reader.run (run gen st) (f, fs) in
+          let (x, y), tb = Monads.Reader.run (run gen st) (f, font_size) in
           put Length.(x + w, y) $> Vg.I.blend tb img in
     let g acc x = acc >>= f x in
-    let* img' = List.fold_left g (pure img) row in
-    put Length.(x, y + box_height) $> (widths, img') in
+    put Length.(x, y + box_height) *> List.fold_left g (pure img) row in
   match names with
-  | [] -> pure (widths, img)
-  | [name] -> write_row (Some 1) name widths img
+  | [] -> pure img
+  | [name] -> write_row (Some 1) name img
   | hd :: tl ->
-      let f acc name = let* ws, m = acc in write_row None name ws m in
-      let res = write_row (Some (List.length tl + 1)) hd widths img in
+      let f acc name = acc >>= write_row None name in
+      let res = write_row (Some (List.length tl + 1)) hd img in
       List.fold_left f res tl
 
 let write_page_header lab section img =
@@ -254,15 +254,15 @@ let write_section lab section checkpoints font_size img roster =
     |> IntMap.to_list
     |> List.sort (fun (i, _) (j, _) -> Int.compare i j)
     |> List.map (Pair.map_snd (List.map Name.canonical)) in
-  let f acc (n, names) = let* ws, img = acc in write_group n names ws img in
-  let anchor, headers = Monads.Reader.run (run headers_r origin) (Bold, font_size) in
+  let anchor, (widths, headers) = Monads.Reader.run (run headers_r origin) (Bold, font_size) in
+  let f acc (n, names) = acc >>= write_group n names widths in
   Monads.Reader.run (run (List.fold_left f (pure headers) gs) anchor) (Regular, font_size)
 
 let write_page lab checkpoints roster =
   let white = Vg.I.const Gg.Color.white in
   let font_size = FS (Length.of_pt (11.)) in
   let section = Roster.section roster in
-  let (_, y), (_, img) = write_section lab section checkpoints font_size white roster in
+  let (_, y), img = write_section lab section checkpoints font_size white roster in
   let width = `M Length.(l - 2. *.. margin) in
   let height = `H Length.(y - margin) in
   let borders_r = text_box "" width height (Some bw2) `C in
