@@ -9,7 +9,7 @@
 (executable
  (name Main)
  (public_name lab-tools)
- (modules Main Roster Common Record Config Xlsx Pdf)
+ (modules Main Roster Common Record Config Xlsx Pdf Monads)
  (preprocess (pps ppx_blob))
  (preprocessor_deps
    (file %{project_root}/fonts/Carlito-Regular.otf)

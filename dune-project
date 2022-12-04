@@ -1,6 +1,6 @@
 (lang dune 3.5)
 (name lab-tools)
-(version aa5a2a2-dirty)
+(version 9ea0d31-dirty)
 
 (generate_opam_files true)
 
