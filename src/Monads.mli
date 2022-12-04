@@ -1,18 +1,16 @@
 module Reader : sig
   type ('r, 'a) t
-  val reader : ('r -> ('a * 'r)) -> ('r, 'a) t
   val run : ('r, 'a) t -> 'r -> 'a
   val ask : ('r, 'r) t
   val asks : ('r -> 'b) -> ('r, 'b) t
+  val local : ('r -> 'r) -> ('r, 'a) t -> ('r, 'a) t
   val fmap : ('a -> 'b) -> ('r, 'a) t -> ('r, 'b) t
   val pure : 'a -> ('r, 'a) t
-  val join : ('r, ('r, 'a) t) t -> ('r, 'a) t
   val ( <$> ) : ('a -> 'b) -> ('r, 'a) t -> ('r, 'b) t
   val ( <*> ) : ('r, 'a -> 'b) t -> ('r, 'a) t -> ('r, 'b) t
   val ( >>= ) : ('r, 'a) t -> ('a -> ('r, 'b) t) -> ('r, 'b) t
   val ( let* ) : ('r, 'a) t -> ('a -> ('r, 'b) t) -> ('r, 'b) t
   val ( let+ ) : ('r, 'a) t -> ('a -> 'b) -> ('r, 'b) t
-  val sequence_l : ('r, 'a) t List.t -> ('r, 'a List.t) t
 end
 
 module StateReader : sig
@@ -29,10 +27,11 @@ module StateReader : sig
   val ask : ('s, 'r, 'r) t
   val asks : ('r -> 'b) -> ('s, 'r, 'b) t
   val join : ('s, 'r, ('s, 'r, 'a) t) t -> ('s, 'r, 'a) t
+  val local : ('r -> 'r) -> ('s, 'r, 'a) t -> ('s, 'r, 'a) t
   val ( <$> ) : ('a -> 'b) -> ('s, 'r, 'a) t -> ('s, 'r, 'b) t
-  val ( $> ) : ('s, 'r, 'a) t -> 'b -> ('s, 'r, 'b) t
+  val ( <$ ) : 'a -> ('s, 'r, 'b) t -> ('s, 'r, 'a) t
   val ( <*> ) : ('s, 'r, 'a -> 'b) t -> ('s, 'r, 'a) t -> ('s, 'r, 'b) t
-  val ( *> ) : ('s, 'r, 'a) t -> ('s, 'r, 'b) t -> ('s, 'r, 'b) t
+  val ( <* ) : ('s, 'r, 'a) t -> ('s, 'r, 'b) t -> ('s, 'r, 'a) t
   val ( >>= ) : ('s, 'r, 'a) t -> ('a -> ('s, 'r, 'b) t) -> ('s, 'r, 'b) t
   val ( let* ) : ('s, 'r, 'a) t -> ('a -> ('s, 'r, 'b) t) -> ('s, 'r, 'b) t
   val ( let+ ) : ('s, 'r, 'a) t -> ('a -> 'b) -> ('s, 'r, 'b) t
