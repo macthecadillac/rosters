@@ -53,10 +53,7 @@ module Section = struct
 
   let to_string { str; _ } = str
 
-  let pp fmt { str; num } =
-    match str with
-    | Some s -> Format.fprintf fmt "%a" String.pp s
-    | None -> Format.fprintf fmt "%i" num
+  let pp fmt t = Format.fprintf fmt "%i" @@ to_int t
 end
 
 module SectionMap = Map.Make (Section)
