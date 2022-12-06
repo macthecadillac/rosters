@@ -58,10 +58,10 @@ let of_xlsx_sheets t =
   let open List in
   let l =
     let* sheet = t in
-    let section = Xlsx.name sheet |> String.split_on_char ' '
-                               |> flip nth 1 |> Int.of_string
-                               |> Option.get_exn_or "Invalid section"
-                               |> Section.of_int in
+    let* i = Option.(Xlsx.name sheet |> String.split_on_char ' '
+                                     |> flip nth_opt 1 >>= Int.of_string
+                                     |> to_list) in
+    let section = Section.of_int i in
     let data = Xlsx.data sheet in
     let header = hd data |> map Xlsx.(content %> Content.to_string) |> Option.sequence_l in
     let+ row = tl data in
@@ -78,24 +78,54 @@ let of_xlsx_sheets t =
     pure { name; section; grades; id = None; sis_user_id = None; sis_login_id = None } in
   Option.sequence_l l
 
-let to_xlsx_sheets records =
-  let m = List.map (fun x -> x.section, [x]) records
+let to_xlsx_sheets section_map records =
+  (* rename since opening List overwrites the definition *)
+  let compare_t = compare in
+  let open List in  (* using the List monad *)
+  let m = map (fun x -> x.section, [x]) records
     |> SectionMap.add_list_with ~f:(fun _ a b -> a @ b) SectionMap.empty
-    |> SectionMap.to_list in
-  let comp = compare in
-  let open List in
-  let+ (section, records) = m in
-  let data =
-    let* record = sort comp records in
-    let name = record.name |> Name.canonical |> Xlsx.text_cell in
-    let grades = 
-      let+ (_, grade) = record.grades in
-      Option.map Xlsx.float_cell grade |> Option.get_or ~default:Xlsx.empty_cell in
-    pure @@ name :: grades in
-  let header = hd m |> snd |> hd |> grades >|= fst |> cons "Name" >|= Xlsx.text_cell in
-  Xlsx.new_sheet (Format.sprintf "section %i" @@ Section.to_int section) (header :: data)
-    |> Xlsx.freeze_row 1
-    |> Xlsx.freeze_col 1
+    |> SectionMap.to_list
+    |> sort (fun (a, _) (b, _) -> Section.compare a b) in
+  (* take the first record of each sheet, extract the list of assignemnts, and
+     prepend "Name" to the list and make that the header *)
+  let assignments = hd m |> snd |> hd |> grades >|= fst in
+  let grade_sheets =
+    let+ section, records = m in
+    let data =
+      let* record = sort compare_t records in
+      let name = record.name |> Name.canonical |> Xlsx.text_cell in
+      let grades = 
+        let+ _, grade = record.grades in
+        Option.(Xlsx.float_cell <$> grade |> get_or ~default:Xlsx.empty_cell) in
+      pure @@ name :: grades in
+    let header = Xlsx.text_cell <$> "Student" :: assignments in
+    let sheet =
+      let sheet_name = Format.sprintf "Section %i" @@ Section.to_int section in
+      Xlsx.new_sheet sheet_name (header :: data)
+      |> Xlsx.freeze_row 1
+      |> Xlsx.freeze_col 1 in
+    section, sheet in
+  let summary_page = 
+    let header = Xlsx.(text_cell "TA" :: empty_cell :: (map text_cell assignments)) in
+    let data =
+      let nrows = SectionMap.of_list
+        @@ map (fun (n, s) -> n, Xlsx.num_rows s) grade_sheets in
+      let* ta, sections = StringMap.to_list section_map in
+      let origin =
+        let+ section = sections in
+        let nrow = SectionMap.get_or section nrows ~default:0 in
+        section, nrow in
+      let formula func =
+        let+ i = List.mapi const assignments in
+        let col = Char.chr @@ Char.code 'B' + i in
+        let range =
+          let+ section, nrow = origin in
+          Format.sprintf "'Section %a'!%c%i:%c%i" Section.pp section col 2 col nrow in
+        Xlsx.formula_cell @@ Format.sprintf "=%s(%s)" func (String.concat "," range) in
+      [Xlsx.text_cell ta :: Xlsx.text_cell "AVG" :: formula "AVERAGE"] @
+      [Xlsx.empty_cell :: Xlsx.text_cell "STDEV" :: formula "STDEV"] in
+    Xlsx.new_sheet "Summary" (header :: data) in
+  summary_page :: map snd grade_sheets
 
 let update_grades published =
   let m = NameMap.of_list (List.map (fun x -> x.name, x) published) in

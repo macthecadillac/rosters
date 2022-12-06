@@ -30,6 +30,8 @@ val freeze_col : Int.t -> sheet -> sheet
 
 val freeze_row : Int.t -> sheet -> sheet
 
+val num_rows : sheet -> Int.t
+
 val text_cell : String.t -> cell
 
 val formula_cell : String.t -> cell
@@ -42,6 +44,6 @@ val data : sheet -> cell List.t List.t
 
 val content : cell -> Content.t
 
-val write : String.t -> sheet List.t -> (Unit.t, String.t) result
+val write : Fpath.t -> sheet List.t -> (Unit.t, [`Msg of String.t]) result
 
-val read : String.t -> (sheet List.t, String.t) Result.t
+val read : Fpath.t -> (sheet List.t, [`Msg of String.t]) Result.t

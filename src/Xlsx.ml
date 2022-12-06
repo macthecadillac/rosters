@@ -21,9 +21,14 @@ type sheet = { name : String.t;
                freeze_col : Int.t Option.t;
                data : cell List.t List.t }
 
-external write: String.t -> sheet List.t -> (unit, String.t) Result.t = "write_xlsx"
+external _write: String.t -> sheet List.t -> (unit, String.t) Result.t = "write_xlsx"
 
-external read: String.t -> (sheet List.t, String.t) Result.t = "read_xlsx"
+let write path l = CCResult.map_err (fun s -> `Msg s)
+  @@ _write (Fpath.to_string path) l
+
+external _read: String.t -> (sheet List.t, String.t) Result.t = "read_xlsx"
+
+let read path = CCResult.map_err (fun s -> `Msg s) @@ _read @@ Fpath.to_string path
 
 let empty_cell =
   let typography = None in
@@ -39,6 +44,8 @@ let new_sheet name data = { name; freeze_row = None; freeze_col = None; data }
 let freeze_row row t = { t with freeze_row = Some row }
 
 let freeze_col col t = { t with freeze_col = Some col }
+
+let num_rows { data; _ } = List.length data
 
 let text_cell t = { empty_cell with content = Text t }
 

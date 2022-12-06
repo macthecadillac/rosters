@@ -29,3 +29,7 @@ end
 module SectionMap : Map.S
   with type 'a t = 'a Map.Make(Section).t
   and type key = Section.t
+
+module StringMap : Map.S
+  with type 'a t = 'a Map.Make(String).t
+  and type key = String.t

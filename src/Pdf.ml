@@ -1,8 +1,13 @@
+(* TODO: put bold boders around groups as well for better visibility *)
 open Containers
-open Fun
-open Fun.Infix
 
 open Common
+
+module SR = Monad.StateReader
+module R = Monad.Reader
+
+open Fun
+open Fun.Infix
 
 module Length : sig
   type t
@@ -80,8 +85,6 @@ let string_to_glyphs =
          we go *)
     %> List.map (Uchar.to_int %> flip (-) 29)
 
-module SR = Monads.StateReader
-module R = Monads.Reader
 let map_fst, map_snd = Pair.(map_fst, map_snd)
 
 let text_length text =
@@ -265,7 +268,7 @@ let write_section lab section checkpoints font_size img roster =
   let f acc (n, names) = SR.(acc >>= write_group n names widths) in
   R.run SR.(run (List.fold_left f (pure headers) gs) anchor) (Regular, font_size)
 
-let write_page lab checkpoints roster =
+let of_roster lab checkpoints roster =
   let white = Vg.I.const Gg.Color.white in
   let font_size = FS (Length.of_pt (11.)) in
   let section = Roster.section roster in
@@ -277,7 +280,7 @@ let write_page lab checkpoints roster =
 
 exception ImpossibleBranch
 
-let write document =
+let to_bytes document =
   let title = "1L Rosters" in
   let description = "1L Rosters" in
   let xmp = Vg.Vgr.xmp ~title ~description () in

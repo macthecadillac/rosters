@@ -62,10 +62,11 @@ let to_xlsx lab checkpoints rosters =
       let+ s = instructions in
       text_cell s |> set_color Red |> set_type Bold |> pure in
     let header =
-      let+ h = ["Signature"; "Late"; "Group"; "Student"; "TA Check"] @ checkpoints in
+      let+ h = ["Signature"; "Late"; "Group"; "Student"] @ checkpoints @ ["TA Check"] in
       text_cell h |> set_type Bold in
     let rows =
-      let* (group, names) = IntMap.to_list roster.groups in
+      let* (group, names) = IntMap.to_list roster.groups
+        |> List.sort (fun (i, _) (j, _) -> Int.compare i j) in
       let+ name = names in
       let g = Format.sprintf "%i" group in
       [empty_cell; empty_cell; text_cell g; text_cell @@ Name.canonical name] in

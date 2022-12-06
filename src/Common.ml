@@ -37,7 +37,7 @@ module Section = struct
 
   type t = { num : Int.t; str : String.t Option.t }
 
-  let compare t1 t2 = Option.compare String.compare t1.str t2.str
+  let compare t1 t2 = Int.compare t1.num t2.num
 
   let to_int { num; _ } = num
 
@@ -57,3 +57,4 @@ module Section = struct
 end
 
 module SectionMap = Map.Make (Section)
+module StringMap = Map.Make (String)
