@@ -34,41 +34,38 @@ let read_config config =
 
 let config_path = Option.get_or ~default:(Fpath.v "lab-tools.toml") begin
   let open Option in
+  let module F = Bos.OS.File in
+  let var str = 
+    let* s = Bos.OS.Env.var str in
+    let+ dir = Fpath.of_string s |> of_result in
+    Fpath.(dir / "lab-tools.toml") in
   match Sys.os_type with
     | "Win32" -> 
-        let* sys_path = Bos.OS.Env.var "LOCALAPPDADA" <+> Bos.OS.Env.var "APPDATA" in
-        let+ appdata = Result.to_opt @@ Fpath.of_string sys_path in
-        Fpath.(appdata / "lab-tools.toml")
+        let path1 = var "LOCALAPPDADA" >>= (F.must_exist %> of_result) in
+        let path2 = var "APPDATA" >>= (F.must_exist %> of_result) in
+        path1 <+> path2
     | "Unix" ->
-        let xdg =
-          let* sys_path = Bos.OS.Env.var "XDG_CONFIG_HOME" in
-          let+ config_home = Result.to_opt @@ Fpath.of_string sys_path in
-          Fpath.(config_home / "lab-tools.toml") in
-        let standard : Fpath.t Option.t = 
-          let+ user_dir = Result.to_opt @@ Bos.OS.Dir.user () in
-          Fpath.(user_dir / ".config" / "lab-tools.toml") in
-        xdg <+> standard
+        let path1 = var "XDG_CONFIG_HOME" >>= (F.must_exist %> of_result) in
+        let path2 =
+          let* user_dir = Result.to_opt @@ Bos.OS.Dir.user () in
+          of_result (F.must_exist Fpath.(user_dir / ".config" / "lab-tools.toml")) in
+        path1 <+> path2
     | _ -> None
   end
 
 let load_config () =
   let open Result in
-  let* toml =
-    begin
-      match Bos.OS.File.read config_path with
-      | Ok toml -> pure toml
-      | Error _ -> Bos.OS.File.read (Fpath.v "lab-tools.toml")
-    end
-      |> map_err (fun (`Msg s) -> `Msg "no configuration found") in
+  let* toml = Bos.OS.File.read config_path
+    |> map_err (fun (`Msg s) -> `Msg "no configuration found") in
   map_err (fun s -> `Msg s) (Otoml.Parser.from_string_result toml >>= read_config)
 
-let open_config () =
+let open_config_in_editor () =
   let open Result in
   get_lazy (fun (`Msg s) -> print_endline s) begin
     let* cmd = match Sys.os_type with
       | "Unix" -> Ok (Bos.Cmd.(v "open" % Fpath.to_string config_path))
       | "Win32" -> Ok (Bos.Cmd.v @@ Fpath.to_string config_path)
-      | _ -> Error (`Msg "unsupported platform") in
+      | _ -> Error (`Msg "unsupported platform for this option") in
     Bos.OS.Cmd.run cmd
   end
 
@@ -152,10 +149,10 @@ let () =
       @@ Arg.opt ((fun s -> `Ok (Some s)), Option.pp String.pp) None
       @@ Arg.info ~docs:"path to canvas exported csv file" ["exported"] in
     Cmd.v (Cmd.info ~docs "new-spreadsheet") Term.(const new_spreadsheet $ exported_path) in
-  let config =
+  let open_config =
     let docs = "open configuration file in text editor" in
-    Cmd.v (Cmd.info ~docs "config") Term.(const open_config $ const ()) in
+    Cmd.v (Cmd.info ~docs "open-config") Term.(const open_config_in_editor $ const ()) in
   let main =
     let docs = "lab-tools" in
-    Cmd.(group (info ~docs "lab-tools") [rosters; merge; new_spreadsheet; config]) in
+    Cmd.(group (info ~docs "lab-tools") [rosters; merge; new_spreadsheet; open_config]) in
   exit @@ Cmd.eval main
