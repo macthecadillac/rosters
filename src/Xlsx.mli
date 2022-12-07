@@ -10,11 +10,15 @@ module Content : sig
   val to_string : t -> String.t Option.t
 
   val to_float : t -> Float.t Option.t
+  
+  val pp : t printer
 end
 
 type cell
 
 type sheet
+
+val cell_pp : cell printer
 
 val new_cell : typography Option.t -> color -> String.t -> Content.t -> cell
 
@@ -44,6 +48,6 @@ val data : sheet -> cell List.t List.t
 
 val content : cell -> Content.t
 
-val write : Fpath.t -> sheet List.t -> (Unit.t, [`Msg of String.t]) result
+val write : Fpath.t -> sheet List.t -> (Unit.t, String.t) result
 
-val read : Fpath.t -> (sheet List.t, [`Msg of String.t]) Result.t
+val read : Fpath.t -> (sheet List.t, String.t) Result.t

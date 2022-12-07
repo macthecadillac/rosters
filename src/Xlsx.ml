@@ -12,6 +12,11 @@ module Content = struct
   let to_string = function Text s -> Some s | _ -> None
 
   let to_float = function Float f -> Some f | _ -> None
+
+  let pp fmt = function
+    | Text s | Formula s -> Format.fprintf fmt "%s" s
+    | Float f -> Format.fprintf fmt "%f" f
+    | Empty -> Format.fprintf fmt ""
 end
 
 type cell = { typography : typography Option.t;
@@ -26,15 +31,17 @@ type sheet = { name : String.t;
 
 type workbook = { sheets : sheet List.t }
 
+let cell_pp fmt { content; _ } = Format.fprintf fmt "%a" Content.pp content
+
 external _write: String.t -> workbook -> (unit, String.t) Result.t = "write_xlsx"
 
-let write path sheets = Result.map_err (fun s -> `Msg s)
+let write path sheets = Result.map_err (fun s -> "xlsxwriter-rs: " ^ s)
   @@ _write (Fpath.to_string path) { sheets }
 
 external _read: String.t -> (workbook, String.t) Result.t = "read_xlsx"
 
 let read = Fpath.to_string %> _read
-                           %> Result.map_err (fun s -> `Msg s)
+                           %> Result.map_err (fun s -> "xlsxwriter-rs: " ^ s)
                            %> Result.map (fun wb -> wb.sheets)
 
 let empty_cell =

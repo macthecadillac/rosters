@@ -11,7 +11,6 @@ use derive_more::{Display, From};
 use xlsxwriter::{Format, FormatColor, FormatUnderline, Workbook};
 
 use std::collections::LinkedList;
-use std::convert::TryFrom;
 
 #[derive(ocaml::ToValue, ocaml::FromValue, Clone, Copy)]
 #[ocaml::sig("Bold | Italic | Underline")]
@@ -25,16 +24,16 @@ pub enum Color { Red, Blue, Green, Black }
 #[ocaml::sig("Text of String.t | Float of float | Formula of String.t | Empty")]
 pub enum Content { Text(String), Float(f64), Formula(String), Empty }
 
-impl TryFrom<&DataType> for Content {
-    type Error = XlsxError;
-
-    fn try_from(datatype: &DataType) -> std::result::Result<Self, Self::Error> {
+impl From<&DataType> for Content {
+    fn from(datatype: &DataType) -> Self {
         match datatype {
-            DataType::Int(i) => Ok(Content::Text(format!("{}", i))),
-            DataType::Float(f) => Ok(Content::Float(*f)),
-            DataType::String(s) => Ok(Content::Text(s.to_owned())),
-            DataType::Empty => Ok(Content::Empty),
-            _ => Err(XlsxError::UnsupportedDataType)
+            DataType::Int(i) => Content::Text(format!("{}", i)),
+            DataType::Float(f) => Content::Float(*f),
+            DataType::String(s) => Content::Text(s.to_owned()),
+            DataType::Empty => Content::Empty,
+            DataType::Bool(b) => Content::Text(format!("{}", b)),
+            DataType::DateTime(d) => Content::Text(format!("{}", d)),
+            DataType::Error(e) => Content::Text(format!("{}", e))
         }
     }
 }
@@ -71,7 +70,6 @@ pub enum XlsxError {
     XlsxWriteError(xlsxwriter::XlsxError),
     #[display(fmt = "{}", "format!(\"xlsx read error: {:?}\", _0)")]
     XlsxReadError(calamine::XlsxError),
-    UnsupportedDataType
 }
 
 type Result<T> = std::result::Result<T, XlsxError>;
@@ -158,7 +156,7 @@ impl XlsxWorkbook {
                     let typography = None;
                     let color = Color::Black;
                     let font = "Calibri".to_string();
-                    let content = cell.try_into()?;
+                    let content = cell.into();
                     cells.push(XlsxCell { typography, color, font, content });
                 }
                 list.push(cells.into_iter().collect::<LinkedList<_>>())

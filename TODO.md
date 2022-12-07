@@ -1,12 +1,17 @@
 - [x] remove all exn calls
 - [x] most Options should really be Results
 - [x] configuration file
-- [ ] group Excel sheets by TA name instead of section
-- [ ] array formula for STDEV.P
-- [ ] stats in each sheet
-- [ ] function changes Reader env type (for configuration)
+- [x] group Excel sheets by TA name instead of section
+- [x] add section column into Excel sheet
+- [x] add student ID to Excel sheet and merge on that
+- [x] be more specific about errors in `of_xlsx_sheets`
+- [x] PDF output by TA
 - [ ] output file/directory CLI option
 - [ ] auto-rename on conflict
+- [x] List.hd/tl to explicit pattern match to prevent exceptions
+- [ ] array formula for STDEV.P
+- [ ] function changes Reader env type (for configuration)
+- [ ] plain help text
 - [ ] Excel column widths
 - [ ] PDF output with bold outlines around groups
 - [ ] automated tests
