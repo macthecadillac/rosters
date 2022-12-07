@@ -1,3 +1,6 @@
+open Containers
+open Fun.Infix
+
 (* TODO: Cell should contain cell indices *)
 type typography = Bold | Italic | Underline
 
@@ -21,14 +24,18 @@ type sheet = { name : String.t;
                freeze_col : Int.t Option.t;
                data : cell List.t List.t }
 
-external _write: String.t -> sheet List.t -> (unit, String.t) Result.t = "write_xlsx"
+type workbook = { sheets : sheet List.t }
 
-let write path l = CCResult.map_err (fun s -> `Msg s)
-  @@ _write (Fpath.to_string path) l
+external _write: String.t -> workbook -> (unit, String.t) Result.t = "write_xlsx"
 
-external _read: String.t -> (sheet List.t, String.t) Result.t = "read_xlsx"
+let write path sheets = Result.map_err (fun s -> `Msg s)
+  @@ _write (Fpath.to_string path) { sheets }
 
-let read path = CCResult.map_err (fun s -> `Msg s) @@ _read @@ Fpath.to_string path
+external _read: String.t -> (workbook, String.t) Result.t = "read_xlsx"
+
+let read = Fpath.to_string %> _read
+                           %> Result.map_err (fun s -> `Msg s)
+                           %> Result.map (fun wb -> wb.sheets)
 
 let empty_cell =
   let typography = None in

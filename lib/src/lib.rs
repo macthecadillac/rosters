@@ -28,7 +28,7 @@ pub enum Content { Text(String), Float(f64), Formula(String), Empty }
 impl TryFrom<&DataType> for Content {
     type Error = XlsxError;
 
-    fn try_from(datatype: &DataType) -> Result<Self, Self::Error> {
+    fn try_from(datatype: &DataType) -> std::result::Result<Self, Self::Error> {
         match datatype {
             DataType::Int(i) => Ok(Content::Text(format!("{}", i))),
             DataType::Float(f) => Ok(Content::Float(*f)),
@@ -74,6 +74,8 @@ pub enum XlsxError {
     UnsupportedDataType
 }
 
+type Result<T> = std::result::Result<T, XlsxError>;
+
 struct FormatBuilder<'a>{ format: Format<'a> }
 
 impl<'a> FormatBuilder<'a> {
@@ -108,73 +110,78 @@ impl<'a> FormatBuilder<'a> {
     }
 }
 
+#[derive(ocaml::ToValue, ocaml::FromValue)]
+#[ocaml::sig("{ sheets : xlsx_sheet List.t }")]
+struct XlsxWorkbook { sheets: LinkedList<XlsxSheet> }
+
+impl XlsxWorkbook {
+    fn write(&self, filename: &str) -> Result<()> {
+        let workbook = Workbook::new(filename)?;
+        for sheet in self.sheets.iter() {
+            let mut ws = workbook.add_worksheet(Some(&sheet.name))?;
+            match (sheet.freeze_row, sheet.freeze_col) {
+                (Some(i), Some(j)) => ws.freeze_panes(i.try_into()?, j.try_into()?),
+                (Some(i), None) => ws.freeze_panes(i.try_into()?, 0),
+                (None, Some(j)) => ws.freeze_panes(0, j.try_into()?),
+                (None, None) => ()
+            };
+            for (i_, row) in sheet.data.iter().enumerate() {
+                let i = i_.try_into()?;
+                for (j_, cell) in row.iter().enumerate() {
+                    let j = j_.try_into()?;
+                    let format = FormatBuilder::new(&workbook)
+                        .set_font(&cell.font)
+                        .set_color(cell.color)
+                        .maybe_set_type(cell.typography)
+                        .build();
+                    match &cell.content {
+                        Content::Text(s) => ws.write_string(i, j, &s, Some(&format))?,
+                        Content::Float(f) => ws.write_number(i, j, *f, Some(&format))?,
+                        Content::Formula(s) => ws.write_formula(i, j, &s, Some(&format))?,
+                        Content::Empty => ()
+                    }
+                }
+            }
+        }
+        workbook.close()?;
+        Ok(())
+    }
+
+    fn read(filename: &str) -> Result<Self> {
+        let mut sheets = Vec::new();
+        let mut workbook: Xlsx<_> = open_workbook(filename)?;
+        for (s, table) in workbook.worksheets().iter() {
+            let mut list = Vec::new();
+            for row in table.rows() {
+                let mut cells = Vec::new();
+                for cell in row.iter() {
+                    let typography = None;
+                    let color = Color::Black;
+                    let font = "Calibri".to_string();
+                    let content = cell.try_into()?;
+                    cells.push(XlsxCell { typography, color, font, content });
+                }
+                list.push(cells.into_iter().collect::<LinkedList<_>>())
+            }
+            let data = list.into_iter().collect::<LinkedList<_>>();
+            let name = s.to_string();
+            let freeze_row = None;
+            let freeze_col = None;
+            sheets.push(XlsxSheet { data, freeze_col, freeze_row, name });
+        }
+        Ok(XlsxWorkbook { sheets: sheets.into_iter().collect() })
+    }
+}
+
 #[ocaml::func]
 #[ocaml::sig("String.t -> xlsx_sheet List.t -> (unit, String.t) Result.t")]
-pub fn write_xlsx(filename: String, sheets: LinkedList<XlsxSheet>)
-    -> Result<(), String> {
-    write_xlsx_with_error(&filename, sheets).map_err(|e| format!("{:?}", e))
+pub fn write_xlsx(filename: String, sheets: XlsxWorkbook)
+    -> std::result::Result<(), String> {
+    sheets.write(&filename).map_err(|e| format!("{:?}", e))
 }
 
 #[ocaml::func]
 #[ocaml::sig("String.t -> (xlsx_sheet List.t, String.t) Result.t")]
-pub fn read_xlsx(filename: String) -> Result<LinkedList<XlsxSheet>, String> {
-    read_xlsx_with_error(&filename).map_err(|e| format!("{:?}", e))
-}
-
-fn write_xlsx_with_error(filename: &str, sheets: LinkedList<XlsxSheet>)
-    -> Result<(), XlsxError> {
-    let workbook = Workbook::new(filename)?;
-    for sheet in sheets.iter() {
-        let mut ws = workbook.add_worksheet(Some(&sheet.name))?;
-        match (sheet.freeze_row, sheet.freeze_col) {
-            (Some(i), Some(j)) => ws.freeze_panes(i.try_into()?, j.try_into()?),
-            (Some(i), None) => ws.freeze_panes(i.try_into()?, 0),
-            (None, Some(j)) => ws.freeze_panes(0, j.try_into()?),
-            (None, None) => ()
-        };
-        for (i_, row) in sheet.data.iter().enumerate() {
-            let i = i_.try_into()?;
-            for (j_, cell) in row.iter().enumerate() {
-                let j = j_.try_into()?;
-                let format = FormatBuilder::new(&workbook)
-                    .set_font(&cell.font)
-                    .set_color(cell.color)
-                    .maybe_set_type(cell.typography)
-                    .build();
-                match &cell.content {
-                    Content::Text(s) => ws.write_string(i, j, &s, Some(&format))?,
-                    Content::Float(f) => ws.write_number(i, j, *f, Some(&format))?,
-                    Content::Formula(s) => ws.write_formula(i, j, &s, Some(&format))?,
-                    Content::Empty => ()
-                }
-            }
-        }
-    }
-    workbook.close()?;
-    Ok(())
-}
-
-fn read_xlsx_with_error(filename: &str) -> Result<LinkedList<XlsxSheet>, XlsxError> {
-    let mut sheets = Vec::new();
-    let mut workbook: Xlsx<_> = open_workbook(filename)?;
-    for (s, table) in workbook.worksheets().iter() {
-        let mut list = Vec::new();
-        for row in table.rows() {
-            let mut cells = Vec::new();
-            for cell in row.iter() {
-                let typography = None;
-                let color = Color::Black;
-                let font = "Calibri".to_string();
-                let content = cell.try_into()?;
-                cells.push(XlsxCell { typography, color, font, content });
-            }
-            list.push(cells.into_iter().collect::<LinkedList<_>>())
-        }
-        let data = list.into_iter().collect::<LinkedList<_>>();
-        let name = s.to_string();
-        let freeze_row = None;
-        let freeze_col = None;
-        sheets.push(XlsxSheet { data, freeze_col, freeze_row, name });
-    }
-    Ok(sheets.into_iter().collect())
+pub fn read_xlsx(filename: String) -> std::result::Result<XlsxWorkbook, String> {
+    XlsxWorkbook::read(&filename).map_err(|e| format!("{:?}", e))
 }

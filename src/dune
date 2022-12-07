@@ -9,10 +9,10 @@
 (executable
  (name Main)
  (public_name lab-tools)
- (modules Main Roster Common Record Config Xlsx Pdf Monad)
+ (modules Main Roster Common Record Xlsx Pdf Monad)
  (preprocess (pps ppx_blob))
  (preprocessor_deps
    (file %{project_root}/fonts/Carlito-Regular.otf)
    (file %{project_root}/fonts/Carlito-Bold.otf))
- (libraries bos containers cmdliner csv gg otoml vg vg.pdf)
+ (libraries bos containers cmdliner csv gg otoml str vg vg.pdf)
  (foreign_archives lab_tools))
