@@ -1,6 +1,4 @@
 // TODO: Cell should contain cell indices
-// TODO: interface error type with OCaml for better error propagation
-// TODO: write formula to file
 // TODO: conditional formatting (when the relevant bindings are published)
 extern crate calamine;
 extern crate derive_more;

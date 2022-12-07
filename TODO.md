@@ -7,7 +7,7 @@
 - [x] be more specific about errors in `of_xlsx_sheets`
 - [x] PDF output by TA
 - [ ] output file/directory CLI option
-- [ ] auto-rename on conflict
+- [x] auto-rename on conflict
 - [x] List.hd/tl to explicit pattern match to prevent exceptions
 - [ ] array formula for STDEV.P
 - [ ] function changes Reader env type (for configuration)

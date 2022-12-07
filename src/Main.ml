@@ -34,6 +34,17 @@ let read_config config =
         >|= IntMap.of_list %> Option.some in
   ta_assignment, checkpoints
 
+let rename_if_exists =
+  let rec aux i s =
+    let open Result.Infix in
+    let s' = if i = 0 then Ok s else
+      let fname, ext = Fpath.split_ext s in
+      let+ fname' = Fpath.(of_string (to_string fname ^ "-" ^ Int.to_string i)) in
+      Fpath.(fname' + ext) in
+    let* b = s' >>= Bos.OS.File.exists in
+    if b then aux (i + 1) s else s' in
+  aux 0
+
 let config_path = Option.to_result "no configuration found" begin
   let open Option.Infix in
   let module F = Bos.OS.File in
@@ -80,7 +91,8 @@ let generate_rosters lab data_path =
   let* ta_assignment, checkpoints_opt = load_config () in
   let write_xlsx checkpoints rosters =
     let xlsx = Roster.to_xlsx lab checkpoints rosters in
-    Fpath.of_string "test.xlsx" |> to_string_err
+    Fpath.of_string "Summary Attendance Sheet.xlsx"
+    >>= rename_if_exists |> to_string_err
     >>= Fun.flip Xlsx.write xlsx in
   let write_pdf checkpoints rosters =
     let rosters_m = SectionMap.of_list @@ List.map (fun x -> Roster.section x, x) rosters in
@@ -119,9 +131,11 @@ let merge_data published_path unpublished_path =
   let merged = Record.update_grades published latest in
   let* updated_ta_grade_sheet = Record.to_xlsx_sheets section_map merged in
   let* to_be_published = Record.to_csv_string merged in
-  let* xlsx_output_path = Fpath.of_string "updated-grades.xlsx" |> to_string_err in
+  let* xlsx_output_path = Fpath.of_string "updated-grades.xlsx"
+    >>= rename_if_exists |> to_string_err in
   let* () = Xlsx.write xlsx_output_path updated_ta_grade_sheet in
-  let* csv_output_path = Fpath.of_string "updated-grades.csv" |> to_string_err in
+  let* csv_output_path = Fpath.of_string "updated-grades.csv"
+    >>= rename_if_exists |> to_string_err in
   Bos.OS.File.write csv_output_path to_be_published |> to_string_err
 
 let new_spreadsheet exported_path =
@@ -131,7 +145,8 @@ let new_spreadsheet exported_path =
     >>= Bos.OS.File.read |> to_string_err
     >|= Record.of_csv_string
     >>= Record.to_xlsx_sheets section_map in
-  let* path = Fpath.of_string "grades.xlsx" |> to_string_err in
+  let* path = Fpath.of_string "grades.xlsx"
+    >>= rename_if_exists |> to_string_err in
   Xlsx.write path grade_spreadsheet
 
 let () =
