@@ -28,9 +28,10 @@ let section { section; _ } = section
 
 let grades { grades; _ } = grades
 
-let no_valid_records_msg = "No valid records found. Make sure that you are using " ^
-                           "the csv file exported directly from canvas with " ^
-                           "all the necesssary columns."
+let no_valid_records_msg =
+  "No valid records found. Make sure that you are using the csv file exported " ^
+  "directly from canvas with all the necesssary columns."
+
 let of_csv_string =
   let of_assoc l =
     let open Option.Infix in
@@ -59,7 +60,9 @@ let to_csv_string = function
       let open Result.Infix in
       let to_csv_row record = 
         let name = Name.to_string record.name in
-        let qname = if String.mem ~sub:"," name then Format.sprintf "\"%s\"" name else name in
+        let qname = if String.mem ~sub:"," name
+                    then Format.sprintf "\"%s\"" name
+                    else name in
         let row =
           let* id = record.id in
           let sis_user_id = record.sis_user_id in
@@ -123,56 +126,63 @@ let to_xlsx_sheets section_map records =
   let module SecM = SectionMap in
   let module X = Xlsx in
   let module O = Option in
+  let module L = List in
   let open Result.Infix in
-  let tas = List.rev @@ List.map fst @@ StringMap.to_list section_map in
-  let m = List.map (fun x -> x.section, [x]) records
+  let tas = L.rev @@ L.map fst @@ StringMap.to_list section_map in
+  let m = L.map (fun x -> x.section, [x]) records
     |> SecM.add_list_with ~f:(fun _ a b -> a @ b) SecM.empty in
-  let ml = m |> SecM.to_list |> List.rev in
+  let ml = m |> SecM.to_list |> L.rev in
   (* take the first record of each sheet and extract the list of assignemnts *)
-  let+ assignments =
-    O.(List.head_opt ml >>= snd %> List.head_opt >|= grades %> List.map fst)
+  let* assignments =
+    O.(L.head_opt ml >>= snd %> L.head_opt >|= grades %> L.map fst)
     |> Option.to_result no_valid_records_msg in
   let to_cells record = 
     let name = X.text_cell @@ Name.canonical @@ record.name in
     let section = X.float_cell @@ Float.of_int @@ Section.to_int @@ record.section in
     let sid = X.text_cell @@ record.sis_user_id in
     let to_cell = snd %> O.map X.float_cell %> O.get_or ~default:X.empty_cell in
-    let grades = List.map to_cell record.grades in
+    let grades = L.map to_cell record.grades in
     name :: sid :: section :: grades in
-  let grade_sheets =
-    let open List.Infix in
+  let* grade_sheets =
     let sheet_of_records records ta =
-      let sections = StringMap.get ta section_map |> O.get_exn_or "" in
-      let header = X.text_cell <$> "Student" :: "ID" :: "Section" :: assignments in
-      let section_to_rows records = List.map to_cells @@ List.sort compare records in
-      flip SecM.get records <$> sections
+      let* sections = StringMap.get ta section_map
+        |> O.to_result (Format.sprintf "%s is not a TA in the configuration" ta) in
+      let header = L.map X.text_cell ("Student" :: "ID" :: "Section" :: assignments) in
+      let section_to_rows records = L.map to_cells @@ L.sort compare records in
+      L.map (flip SecM.get records) sections
       |> O.sequence_l
-      |> O.get_exn_or ""
-      |> List.flat_map section_to_rows
-      |> List.cons header
-      |> X.new_sheet ta
-      |> X.freeze_col 3
-      |> X.freeze_row 1
-      |> Pair.make ta in
-    sheet_of_records m <$> tas in
-  let nrows = StringMap.of_list @@ List.map (Pair.map_snd X.num_rows) grade_sheets in
+      |> O.to_result ("Some sections defined in your configuration are not " ^
+                      "in the canvas csv file. Are you sure this is the " ^
+                      "right input file?")
+      >|= L.flat_map section_to_rows
+      %> L.cons header
+      %> X.new_sheet ta
+      %> X.freeze_col 3
+      %> X.freeze_row 1
+      %> Pair.make ta in
+    Result.map_l (sheet_of_records m) tas in
+  let nrows = StringMap.of_list @@ L.map (Pair.map_snd X.num_rows) grade_sheets in
   let row_count s = StringMap.find_opt s nrows in
   let formula xlsx_f ta i _ =
     let range =
       let col = Char.chr @@ Char.code 'D' + i in
       let f n = Format.sprintf "'%s'!%c%i:%c%i" ta col 2 col n in
-      f @@ O.get_exn_or "" @@ row_count ta in
-    X.formula_cell @@ Format.sprintf "=%s(%s)" xlsx_f range in
+      f <$> O.to_result (Format.sprintf "%s is not a TA in the configuration" ta)
+      @@ row_count ta in
+    X.formula_cell % Format.sprintf "=%s(%s)" xlsx_f <$> range in
   let ta_stats assignments ta sections =
-    let assignment_stats func = List.mapi (formula func ta) assignments in
-    [X.text_cell ta :: X.text_cell "AVG" :: assignment_stats "AVERAGE"]
-    @ [X.empty_cell :: X.text_cell "STDEV" :: assignment_stats "STDEV"] in
-  let summary_page = 
-    let header = X.(text_cell "TA" :: empty_cell :: List.map text_cell assignments) in
-    let data =
-      List.flat_map (uncurry (ta_stats assignments)) @@ List.rev @@ StringMap.to_list section_map in
-    X.new_sheet "Summary" (header :: data) in
-  summary_page :: List.map snd grade_sheets
+    let assignment_stats func = Result.flatten_l @@ L.mapi (formula func ta) assignments in
+    let* avg_stats = assignment_stats "AVERAGE" in
+    let+ std_stats = assignment_stats "STDEV" in
+    [X.text_cell ta :: X.text_cell "AVG" :: avg_stats]
+    @ [X.empty_cell :: X.text_cell "STDEV" :: std_stats] in
+  let+ summary_page = 
+    let header = X.(text_cell "TA" :: empty_cell :: L.map text_cell assignments) in
+    let+ data = Result.map_l (uncurry @@ ta_stats assignments)
+      @@ L.rev
+      @@ StringMap.to_list section_map in
+    X.new_sheet "Summary" (header :: L.flatten data) in
+  summary_page :: L.map snd grade_sheets
 
 let update_grades published =
   let m = StringMap.of_list (List.map (fun x -> x.sis_user_id, x) published) in

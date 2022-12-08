@@ -86,13 +86,16 @@ let open_config_in_editor () =
     | _ -> Error "unsupported platform for this option" in
   Bos.OS.Cmd.run cmd |> Result.map_err @@ const @@ "no configuration found"
 
-let generate_rosters lab data_path =
+let generate_rosters lab data_path output_dir =
   let open Result.Infix in
   let* ta_assignment, checkpoints_opt = load_config () in
+  let* prefix = match output_dir with
+    | Some s -> Fpath.of_string s |> to_string_err
+    | None -> Bos.OS.Dir.current () |> to_string_err in
   let write_xlsx checkpoints rosters =
     let xlsx = Roster.to_xlsx lab checkpoints rosters in
-    Fpath.of_string "Summary Attendance Sheet.xlsx"
-    >>= rename_if_exists |> to_string_err
+    Fpath.(prefix / (Format.sprintf "Lab %i Summary Attendance Sheet.xlsx" lab))
+    |> rename_if_exists |> to_string_err
     >>= Fun.flip Xlsx.write xlsx in
   let write_pdf checkpoints rosters =
     let rosters_m = SectionMap.of_list @@ List.map (fun x -> Roster.section x, x) rosters in
@@ -103,10 +106,10 @@ let generate_rosters lab data_path =
       let all = Pdf.to_bytes @@ List.map (Pdf.of_roster lab checkpoints) rosters in
       let f = List.filter_map (flip SectionMap.get rosters_m) in
       ("All", all) :: List.map (Pair.map_snd @@ pdf_of_rosters % f) ta_section_l in
-    let fname s = Format.sprintf "Lab %i Rosters (%s Sections).pdf" lab s in
+    let fname s = Format.sprintf "Lab %i Blank Rosters (%s Sections).pdf" lab s in
     (* something of a foldM with EitherT String IO () *)
     let iter_f acc (n, s) = acc >>= fun () ->
-      Fpath.of_string (fname n) >>= flip Bos.OS.File.write s |> to_string_err in
+      Fpath.(prefix / fname n) |> flip Bos.OS.File.write s |> to_string_err in
     List.fold_left iter_f (Ok ()) pdfs in
   let checkpoints =
     let default = ["1"; "2"; "3"; "4"] in
@@ -117,9 +120,18 @@ let generate_rosters lab data_path =
   let* () = write_xlsx checkpoints rosters in
   write_pdf checkpoints rosters
 
-let merge_data published_path unpublished_path =
+let choose_path default user_path =
+  let open Result.Infix in begin
+    match user_path with
+    | Some s -> Fpath.of_string s
+    | None -> Fpath.of_string default
+  end >>= rename_if_exists |> to_string_err
+
+let merge_data published_path unpublished_path csv_output_path xlsx_output_path =
   let open Result.Infix in
   let* section_map, _ = load_config () in
+  let* csv_out_fpath = choose_path "Updated Grades.csv" csv_output_path in
+  let* xlsx_out_fpath = choose_path "Updated Grades.xlsx" xlsx_output_path in
   let* latest =
     let* fpath = Fpath.of_string unpublished_path |> to_string_err in
     let* xlsx = Xlsx.read fpath in
@@ -131,22 +143,17 @@ let merge_data published_path unpublished_path =
   let merged = Record.update_grades published latest in
   let* updated_ta_grade_sheet = Record.to_xlsx_sheets section_map merged in
   let* to_be_published = Record.to_csv_string merged in
-  let* xlsx_output_path = Fpath.of_string "updated-grades.xlsx"
-    >>= rename_if_exists |> to_string_err in
-  let* () = Xlsx.write xlsx_output_path updated_ta_grade_sheet in
-  let* csv_output_path = Fpath.of_string "updated-grades.csv"
-    >>= rename_if_exists |> to_string_err in
-  Bos.OS.File.write csv_output_path to_be_published |> to_string_err
+  let* () = Xlsx.write xlsx_out_fpath updated_ta_grade_sheet in
+  Bos.OS.File.write csv_out_fpath to_be_published |> to_string_err
 
-let new_spreadsheet exported_path =
+let new_spreadsheet exported_path output_path =
   let open Result.Infix in
+  let* path = choose_path "Grades.xlsx" output_path in
   let* section_map, _ = load_config () in
   let* grade_spreadsheet = Fpath.of_string exported_path
     >>= Bos.OS.File.read |> to_string_err
     >|= Record.of_csv_string
     >>= Record.to_xlsx_sheets section_map in
-  let* path = Fpath.of_string "grades.xlsx"
-    >>= rename_if_exists |> to_string_err in
   Xlsx.write path grade_spreadsheet
 
 let () =
@@ -156,25 +163,37 @@ let () =
     let lab = Arg.required
       @@ Arg.opt ((fun s -> `Ok (Int.of_string s)), Option.pp Int.pp) None
       @@ Arg.info ~docs:"lab number" ["lab"] in
-    let data_path = Arg.required
+    let input = Arg.required
       @@ Arg.opt ((fun s -> `Ok (Some s)), Option.pp String.pp) None
       @@ Arg.info ~docs:"path to canvas exported csv file" ["input"; "i"] in
-    Cmd.v (Cmd.info ~docs "rosters") Term.(const generate_rosters $ lab $ data_path) in
+    let output = Arg.value
+      @@ Arg.opt ((fun s -> `Ok (Some s)), Option.pp String.pp) None
+      @@ Arg.info ~docs:"output directory" ["output"; "o"] in
+    Cmd.v (Cmd.info ~docs "rosters") Term.(const generate_rosters $ lab $ input $ output) in
   let merge =
     let docs = "merge data files" in
-    let published_path = Arg.required
+    let left = Arg.required
       @@ Arg.opt ((fun s -> `Ok (Some s)), Option.pp String.pp) None
       @@ Arg.info ~docs:"path to canvas exported csv file" ["published"] in
-    let latest_data_path = Arg.required
+    let right = Arg.required
       @@ Arg.opt ((fun s -> `Ok (Some s)), Option.pp String.pp) None
       @@ Arg.info ~docs:"path to TA spreadsheet" ["latest"; "i"] in
-    Cmd.v (Cmd.info ~docs "merge") Term.(const merge_data $ published_path $ latest_data_path) in
+    let csv_out = Arg.value
+      @@ Arg.opt ((fun s -> `Ok (Some s)), Option.pp String.pp) None
+      @@ Arg.info ~docs:"output csv" ["csv-out"] in
+    let xlsx_out = Arg.value
+      @@ Arg.opt ((fun s -> `Ok (Some s)), Option.pp String.pp) None
+      @@ Arg.info ~docs:"output xlsx" ["xlsx-out"] in
+    Cmd.v (Cmd.info ~docs "merge") Term.(const merge_data $ left $ right $ csv_out $ xlsx_out) in
   let new_spreadsheet =
     let docs = "create new TA grading sheet" in
-    let exported_path = Arg.required
+    let input = Arg.required
       @@ Arg.opt ((fun s -> `Ok (Some s)), Option.pp String.pp) None
-      @@ Arg.info ~docs:"path to canvas exported csv file" ["exported"] in
-    Cmd.v (Cmd.info ~docs "new-spreadsheet") Term.(const new_spreadsheet $ exported_path) in
+      @@ Arg.info ~docs:"path to canvas exported csv file" ["input"; "i"] in
+    let output = Arg.value
+      @@ Arg.opt ((fun s -> `Ok (Some s)), Option.pp String.pp) None
+      @@ Arg.info ~docs:"output file name" ["output"; "o"] in
+    Cmd.v (Cmd.info ~docs "new-spreadsheet") Term.(const new_spreadsheet $ input $ output) in
   let open_config =
     let docs = "open configuration file in text editor" in
     Cmd.v (Cmd.info ~docs "open-config") Term.(const open_config_in_editor $ const ()) in

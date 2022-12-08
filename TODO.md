@@ -6,9 +6,10 @@
 - [x] add student ID to Excel sheet and merge on that
 - [x] be more specific about errors in `of_xlsx_sheets`
 - [x] PDF output by TA
-- [ ] output file/directory CLI option
+- [x] output file/directory CLI option
 - [x] auto-rename on conflict
 - [x] List.hd/tl to explicit pattern match to prevent exceptions
+- [ ] setup default config on first run
 - [ ] array formula for STDEV.P
 - [ ] function changes Reader env type (for configuration)
 - [ ] plain help text
@@ -18,4 +19,3 @@
 - [ ] Github workflows auto compile for all four platforms
 - [ ] code signing for macOS
 - [ ] maybe color code Excel sheet tabs
-- [ ] multicore PDF generation
