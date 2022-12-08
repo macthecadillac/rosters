@@ -159,45 +159,45 @@ let new_spreadsheet exported_path output_path =
 let () =
   let open Cmdliner in
   let rosters =
-    let docs = "generate rosters" in
+    let doc = "generate rosters" in
     let lab = Arg.required
       @@ Arg.opt ((fun s -> `Ok (Int.of_string s)), Option.pp Int.pp) None
-      @@ Arg.info ~docs:"lab number" ["lab"] in
+      @@ Arg.info ~doc:"lab number" ["lab"] in
     let input = Arg.required
       @@ Arg.opt ((fun s -> `Ok (Some s)), Option.pp String.pp) None
-      @@ Arg.info ~docs:"path to canvas exported csv file" ["input"; "i"] in
+      @@ Arg.info ~doc:"path to canvas exported csv file" ["input"; "i"] in
     let output = Arg.value
       @@ Arg.opt ((fun s -> `Ok (Some s)), Option.pp String.pp) None
-      @@ Arg.info ~docs:"output directory" ["output"; "o"] in
-    Cmd.v (Cmd.info ~docs "rosters") Term.(const generate_rosters $ lab $ input $ output) in
+      @@ Arg.info ~doc:"output directory" ["output"; "o"] in
+    Cmd.v (Cmd.info ~doc "rosters") Term.(const generate_rosters $ lab $ input $ output) in
   let merge =
-    let docs = "merge data files" in
+    let doc = "merge data files" in
     let left = Arg.required
       @@ Arg.opt ((fun s -> `Ok (Some s)), Option.pp String.pp) None
-      @@ Arg.info ~docs:"path to canvas exported csv file" ["published"] in
+      @@ Arg.info ~doc:"path to canvas exported csv file" ["published"] in
     let right = Arg.required
       @@ Arg.opt ((fun s -> `Ok (Some s)), Option.pp String.pp) None
-      @@ Arg.info ~docs:"path to TA spreadsheet" ["latest"; "i"] in
+      @@ Arg.info ~doc:"path to TA spreadsheet" ["latest"; "i"] in
     let csv_out = Arg.value
       @@ Arg.opt ((fun s -> `Ok (Some s)), Option.pp String.pp) None
-      @@ Arg.info ~docs:"output csv" ["csv-out"] in
+      @@ Arg.info ~doc:"output csv" ["csv-out"] in
     let xlsx_out = Arg.value
       @@ Arg.opt ((fun s -> `Ok (Some s)), Option.pp String.pp) None
-      @@ Arg.info ~docs:"output xlsx" ["xlsx-out"] in
-    Cmd.v (Cmd.info ~docs "merge") Term.(const merge_data $ left $ right $ csv_out $ xlsx_out) in
+      @@ Arg.info ~doc:"output xlsx" ["xlsx-out"] in
+    Cmd.v (Cmd.info ~doc "merge") Term.(const merge_data $ left $ right $ csv_out $ xlsx_out) in
   let new_spreadsheet =
-    let docs = "create new TA grading sheet" in
+    let doc = "create new TA grading sheet" in
     let input = Arg.required
       @@ Arg.opt ((fun s -> `Ok (Some s)), Option.pp String.pp) None
-      @@ Arg.info ~docs:"path to canvas exported csv file" ["input"; "i"] in
+      @@ Arg.info ~doc:"path to canvas exported csv file" ["input"; "i"] in
     let output = Arg.value
       @@ Arg.opt ((fun s -> `Ok (Some s)), Option.pp String.pp) None
-      @@ Arg.info ~docs:"output file name" ["output"; "o"] in
-    Cmd.v (Cmd.info ~docs "new-spreadsheet") Term.(const new_spreadsheet $ input $ output) in
+      @@ Arg.info ~doc:"output file name" ["output"; "o"] in
+    Cmd.v (Cmd.info ~doc "new-spreadsheet") Term.(const new_spreadsheet $ input $ output) in
   let open_config =
-    let docs = "open configuration file in text editor" in
-    Cmd.v (Cmd.info ~docs "open-config") Term.(const open_config_in_editor $ const ()) in
+    let doc = "open configuration file in text editor" in
+    Cmd.v (Cmd.info ~doc "open-config") Term.(const open_config_in_editor $ const ()) in
   let main =
-    let docs = "lab-tools" in
-    Cmd.(group (info ~docs "lab-tools") [rosters; merge; new_spreadsheet; open_config]) in
+    let doc = "lab-tools" in
+    Cmd.(group (info ~doc "lab-tools") [rosters; merge; new_spreadsheet; open_config]) in
   exit @@ Cmd.eval_result main

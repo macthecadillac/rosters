@@ -1,6 +1,6 @@
 (lang dune 3.5)
 (name lab-tools)
-(version 9ea0d31-dirty)
+(version 3d39fae-dirty)
 
 (generate_opam_files true)
 
@@ -14,6 +14,7 @@
   (dune (>= "1.5"))
   (conf-rust-2021 (= "1"))
   (containers (= "3.10"))
+  (cmdliner (= "1.1.0"))
   (vg (= "0.9.4"))
   (csv (= "2.4"))
   (bos (= "0.2.1"))

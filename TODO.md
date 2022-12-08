@@ -12,7 +12,7 @@
 - [ ] setup default config on first run
 - [ ] array formula for STDEV.P
 - [ ] function changes Reader env type (for configuration)
-- [ ] plain help text
+- [x] plain help text
 - [ ] Excel column widths
 - [ ] PDF output with bold outlines around groups
 - [ ] automated tests
