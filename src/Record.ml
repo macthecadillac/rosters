@@ -3,24 +3,28 @@ open Common
 open Fun
 open Fun.Infix
 
-type t = { name : Name.t;
+type t = { name : (Name.t, String.t) Result.t;
            id : (String.t, String.t) Result.t;
            sis_user_id : String.t;
            sis_login_id : (String.t, String.t) Result.t;
-           section : Section.t;
+           section : (Section.t, String.t) Result.t;
            grades : (String.t * Float.t Option.t) List.t }
 
 let pp fmt t =
   Format.fprintf fmt "{\n";
-  Format.fprintf fmt "  name : %a\n" Name.pp t.name;
+  Format.fprintf fmt "  name : %a\n" (Result.pp Name.pp) t.name;
   Format.fprintf fmt "  id : %a\n" (Result.pp String.pp) t.id;
   Format.fprintf fmt "  sis_user_id : %s\n" t.sis_user_id;
   Format.fprintf fmt "  sis_login_id : %a\n" (Result.pp String.pp) t.sis_login_id;
-  Format.fprintf fmt "  section : %a\n" Section.pp t.section;
+  Format.fprintf fmt "  section : %a\n" (Result.pp Section.pp) t.section;
   Format.fprintf fmt "  grades : %a\n" (List.pp (Pair.pp String.pp (Option.pp Float.pp))) t.grades;
   Format.fprintf fmt "}"
 
-let compare t1 t2 = Name.compare t1.name t2.name
+let compare t1 t2 =
+  match t1.name, t2.name, t1.section, t2.section with
+  | Ok n1, Ok n2, Ok s1, Ok s2 ->
+    Pair.compare Section.compare Name.compare (s1, n1) (s2, n2)
+  | _ -> String.compare t1.sis_user_id t2.sis_user_id
 
 let name { name; _ } = name
 
@@ -47,7 +51,7 @@ let of_csv_string =
         if String.mem ~sub:"Conclusion " s then Some (s, Float.of_string_opt r)
         else None in
       List.filter_map f l in
-    { name; id; sis_user_id; sis_login_id; section; grades } in
+    { name = Ok name; id; sis_user_id; sis_login_id; section = Ok section; grades } in
   Csv.of_string ~has_header:true
   %> Csv.Rows.input_all
   %> List.filter_map (Csv.Row.to_assoc %> of_assoc)
@@ -59,7 +63,7 @@ let to_csv_string = function
   | (hd :: _) as records ->
       let open Result.Infix in
       let to_csv_row record = 
-        let name = Name.to_string record.name in
+        let* name = Name.to_string <$> record.name in
         let qname = if String.mem ~sub:"," name
                     then Format.sprintf "\"%s\"" name
                     else name in
@@ -67,8 +71,8 @@ let to_csv_string = function
           let* id = record.id in
           let sis_user_id = record.sis_user_id in
           let* sis_login_id = record.sis_login_id in
-          let+ section = Section.to_string record.section
-            |> Option.to_result "no section string found" in
+          let+ section = record.section >>= Section.to_string
+            %> Option.to_result "no section string found" in
           let meta = [qname; id; sis_user_id; sis_login_id; section] in
           let grades = List.map Option.(get_or ~default:"" % map Float.to_string % snd)
                                 record.grades in
@@ -95,11 +99,11 @@ let of_xlsx_sheets sheets =
       List.assoc_opt ~eq:String.(=) s record
         >>= Xlsx.content %> p
         |> Option.to_result (to_string record) in
-    let* name =
+    let name =
       let* s = str_opt "Student" C.to_string in
       Name.of_string s |> Option.to_result (Format.sprintf "%s is not a valid name" s) in
-    let* sis_user_id = str_opt "ID" C.to_string in
-    let+ section = str_opt "Section" C.to_float >|= (Int.of_float %> Section.of_int) in
+    let+ sis_user_id = str_opt "ID" C.to_string in
+    let section = str_opt "Section" C.to_float >|= (Int.of_float %> Section.of_int) in
     let grades =
       let f (s, r) =
         if String.mem ~sub:"Conclusion " s then Some Xlsx.(s, C.to_float @@ content r)
@@ -129,16 +133,16 @@ let to_xlsx_sheets section_map records =
   let module L = List in
   let open Result.Infix in
   let tas = L.rev @@ L.map fst @@ StringMap.to_list section_map in
-  let m = L.map (fun x -> x.section, [x]) records
-    |> SecM.add_list_with ~f:(fun _ a b -> a @ b) SecM.empty in
+  let* m = Result.map_l (fun x -> x.section >>= fun s -> Ok (s, [x])) records
+    >|= SecM.add_list_with ~f:(fun _ a b -> a @ b) SecM.empty in
   let ml = m |> SecM.to_list |> L.rev in
   (* take the first record of each sheet and extract the list of assignemnts *)
   let* assignments =
     O.(L.head_opt ml >>= snd %> L.head_opt >|= grades %> L.map fst)
     |> Option.to_result no_valid_records_msg in
   let to_cells record = 
-    let name = X.text_cell @@ Name.canonical @@ record.name in
-    let section = X.float_cell @@ Float.of_int @@ Section.to_int @@ record.section in
+    let* name = X.text_cell % Name.canonical <$> record.name in
+    let+ section = X.float_cell % Float.of_int % Section.to_int <$> record.section in
     let sid = X.text_cell @@ record.sis_user_id in
     let to_cell = snd %> O.map X.float_cell %> O.get_or ~default:X.empty_cell in
     let grades = L.map to_cell record.grades in
@@ -148,18 +152,14 @@ let to_xlsx_sheets section_map records =
       let* sections = StringMap.get ta section_map
         |> O.to_result (Format.sprintf "%s is not a TA in the configuration" ta) in
       let header = L.map X.text_cell ("Student" :: "ID" :: "Section" :: assignments) in
-      let section_to_rows records = L.map to_cells @@ L.sort compare records in
+      let records_to_rows records = Result.map_l to_cells @@ L.sort compare records in
       L.map (flip SecM.get records) sections
-      |> O.sequence_l
-      |> O.to_result ("Some sections defined in your configuration are not " ^
-                      "in the canvas csv file. Are you sure this is the " ^
-                      "right input file?")
-      >|= L.flat_map section_to_rows
-      %> L.cons header
-      %> X.new_sheet ta
-      %> X.freeze_col 3
-      %> X.freeze_row 1
-      %> Pair.make ta in
+        |> O.sequence_l
+        |> O.to_result ("Some sections defined in your configuration are not " ^
+                        "in the canvas csv file. Are you sure this is the " ^
+                        "right input file?")
+        >|= L.flatten >>= records_to_rows >|= L.cons header
+        %> X.new_sheet ta %> X.freeze_col 3 %> X.freeze_row 1 %> Pair.make ta in
     Result.map_l (sheet_of_records m) tas in
   let nrows = StringMap.of_list @@ L.map (Pair.map_snd X.num_rows) grade_sheets in
   let row_count s = StringMap.find_opt s nrows in

@@ -153,30 +153,28 @@ let generate_rosters lab data_path output_dir =
     let pdfs =
       let pdf_page = Pdf.of_roster lab checkpoints in
       let pdf_of_rosters = Pdf.to_bytes % List.map pdf_page in
-      let ta_section_l = StringMap.to_list ta_assignment in
+      let ta_section_l = StringMap.to_seq ta_assignment in
       let all = Pdf.to_bytes @@ List.map (Pdf.of_roster lab checkpoints) rosters in
       let f = List.filter_map (flip SectionMap.get rosters_m) in
-      ("All", all) :: List.map (Pair.map_snd @@ pdf_of_rosters % f) ta_section_l in
+      Seq.cons ("All", all) @@ Seq.map (Pair.map_snd @@ pdf_of_rosters % f) ta_section_l in
     let fname s = Format.sprintf "Lab %i Blank Rosters (%s Sections).pdf" lab s in
     (* something of a foldM with EitherT String IO () *)
     let iter_f acc (n, s) = acc >>= fun () ->
       Fpath.(prefix / fname n) |> flip Bos.OS.File.write s |> to_string_err in
-    List.fold_left iter_f (Ok ()) pdfs in
+    Seq.fold_left iter_f (Ok ()) pdfs in
   let checkpoints =
     let default = ["1"; "2"; "3"; "4"] in
     Option.(checkpoints_opt >>= IntMap.get lab |> get_or ~default) in
-  let* fpath = Fpath.of_string data_path |> Result.map_err (fun (`Msg s) -> s) in
-  let* s = Bos.OS.File.read fpath |> Result.map_err (fun (`Msg s) -> s) in
-  let rosters = Record.of_csv_string s |> Roster.of_data |> Seq.to_list in
+  let* fpath = Fpath.of_string data_path |> to_string_err in
+  let* s = Bos.OS.File.read fpath |> to_string_err in
+  let* rosters = Record.of_csv_string s |> Roster.of_data in
   let* () = write_xlsx checkpoints rosters in
   write_pdf checkpoints rosters
 
 let choose_path default user_path =
-  let open Result.Infix in begin
-    match user_path with
-    | Some s -> Fpath.of_string s
-    | None -> Fpath.of_string default
-  end >>= rename_if_exists |> to_string_err
+  let open Result.Infix in
+  Option.get_or ~default user_path |> Fpath.of_string
+    >>= rename_if_exists |> to_string_err
 
 let merge_data published_path unpublished_path csv_output_path xlsx_output_path =
   let open Result.Infix in

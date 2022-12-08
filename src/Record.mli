@@ -2,9 +2,9 @@ open Common
 
 type t
 
-val name : t -> Name.t
+val name : t -> (Name.t, String.t) Result.t
 
-val section : t -> Section.t
+val section : t -> (Section.t, String.t) Result.t
 
 val grades : t -> (String.t * Float.t Option.t) List.t
 

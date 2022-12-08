@@ -36,11 +36,15 @@ let new_roster section students =
   in { section; groups }
 
 let of_data l =
-  Seq.of_list l
-  |> Seq.map (fun x -> Record.section x, [Record.name x])
-  |> SectionMap.(add_seq_with ~f:(fun _ a b -> a @ b) empty)
-  |> SectionMap.to_seq
-  |> Seq.map (fun (s, l) -> new_roster s l)
+  let open Result.Infix in
+  let sec_map x =
+    let* section = Record.section x in
+    let+ name = Record.name x in
+    section, [name] in
+  let+ m = Result.map_l sec_map l in
+  SectionMap.(add_list_with ~f:(fun _ a b -> a @ b) empty) m
+    |> SectionMap.to_list
+    |> List.map (fun (s, l) -> new_roster s l)
 
 let to_xlsx lab checkpoints rosters =
   let open List in
