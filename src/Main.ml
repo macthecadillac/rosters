@@ -5,6 +5,47 @@ open Common
 
 let to_string_err x = Result.map_err (fun (`Msg s) -> s) x
 
+let default_config =
+"# This section is mandatory. `lab-tools` won't run without this section. If this
+# section is incomplete, `lab-tools` might generate garbage.
+[ta-assignment]
+# LHS is the name of the TA. There cannot be spaces within a name.
+# RHS is the list of sections that the TA is assigned to. It must be a list of
+# integers separated by commas.
+Casey = [38, 40]
+Harry = [17, 19, 29, 35]
+Luke = [3, 21, 23, 33]
+Kshitij = [7, 9, 28, 30]
+Sophia = [10, 18, 20, 36]
+Wanda = [5, 13, 15, 25]
+Guru = [1, 11, 27, 31]
+Hannah = [2, 12, 22, 32]
+Billy = [6, 8, 16, 26]
+Ting-Chun = [4, 14, 24, 34]
+Aniket = [37, 39]
+
+# This section is optional. `lab-tools` will run with default values if this is
+# missing
+[checkpoints]
+# LHS must be in the form of \"lab\" followed by an integer.
+# RHS is a list of strings. Entries must be enclosed in single or double quotes
+# separted by commas.
+lab1 = ['A', 'B5', 'C1', 'C2']
+lab2 = ['B5', 'B6', 'Part C7']
+lab3 = ['A7b', 'B7', 'B8/B9', 'B12']
+lab4 = ['A4', 'B6', 'D1', 'D2']
+lab5 = ['A2', 'B2', 'After C5', 'C6']
+lab6 = ['A', 'B5', 'C']
+lab7 = ['A3', 'B6', 'B13', 'C10']
+lab8 = ['A6', 'A12', 'B2', 'B7']
+lab9 = ['A3', 'B2', 'B9', 'C4']
+"
+
+let config_not_found_msg =
+  "Configuration not found. `lab-tools` cannot run without first being " ^
+  "configured. Edit the configuraton file by running `lab-tools open-config` " ^
+  "then try again."
+
 let read_config config =
   let open Result.Infix in
   let from_array f = function
@@ -45,46 +86,56 @@ let rename_if_exists =
     if b then aux (i + 1) s else s' in
   aux 0
 
-let config_path = Option.to_result "no configuration found" begin
+let default_config_dir () =
   let open Option.Infix in
-  let module F = Bos.OS.File in
-  let var str = 
-    let* s = Bos.OS.Env.var str in
-    let+ dir = Fpath.of_string s |> Option.of_result in
-    Fpath.(dir / "lab-tools.toml") in
+  let var str = Option.(Bos.OS.Env.var str >>= Fpath.of_string %> of_result) in
+  let cwd = Bos.OS.Dir.current () |> Option.of_result in
   match Sys.os_type with
-    | "Win32" -> 
-        let path1 = var "LOCALAPPDADA" >>= (F.must_exist %> Option.of_result) in
-        let path2 = var "APPDATA" >>= (F.must_exist %> Option.of_result) in
-        let path3 = Option.of_result @@ F.must_exist @@ Fpath.v "lab-tools.toml" in
-        path1 <+> path2 <+> path3
+    | "Win32" -> var "LOCALAPPDADA" <+> cwd
     | "Unix" ->
-        let path1 = var "XDG_CONFIG_HOME" >>= (F.must_exist %> Option.of_result) in
-        let path2 =
+        let p =
           let* user_dir = Result.to_opt @@ Bos.OS.Dir.user () in
-          Option.of_result (F.must_exist Fpath.(user_dir / ".config" / "lab-tools.toml")) in
-        let path3 = Option.of_result @@ F.must_exist @@ Fpath.v "lab-tools.toml" in
-        path1 <+> path2 <+> path3
+          Option.of_result (Bos.OS.Dir.must_exist Fpath.(user_dir / ".config")) in
+        var "XDG_CONFIG_HOME" <+> p <+> cwd
     | _ -> None
-  end
+
+let config_path () =
+  let open Result.Infix in
+  let msg = "No configuration directory found. Abort." in
+  let* config_dir = default_config_dir () |> Option.to_result msg in
+  Bos.OS.File.must_exist Fpath.(config_dir / "lab-tools.toml")
+    |> Result.map_err (const config_not_found_msg)
+
+let write_default_config () =
+  let open Result.Infix in
+  let* path = match default_config_dir () with
+    | Some p -> Ok Fpath.(p / "lab-tools.toml")
+    | None -> Error "No configuration directory found. Abort." in
+  Bos.OS.File.write path default_config |> to_string_err
 
 let load_config () =
   let open Result.Infix in
-  let* path = config_path in
+  let* path = config_path () in
   let* toml = Bos.OS.File.read path
-    |> Result.map_err @@ const @@ "no configuration found" in
+    |> Result.map_err @@ const @@ config_not_found_msg in
   Otoml.Parser.from_string_result toml
     >>= read_config
     |> Result.add_ctx " malformed configuration file"
 
 let open_config_in_editor () =
   let open Result.Infix in
-  let* path = config_path in
+  let* () = if Result.is_error (config_path ())
+            then write_default_config () else Ok () in
+  let* path = config_path () in
   let* cmd = match Sys.os_type with
     | "Unix" -> Ok (Bos.Cmd.(v "open" % Fpath.to_string path))
     | "Win32" -> Ok (Bos.Cmd.v @@ Fpath.to_string path)
     | _ -> Error "unsupported platform for this option" in
-  Bos.OS.Cmd.run cmd |> Result.map_err @@ const @@ "no configuration found"
+  Bos.OS.Cmd.run cmd |> Result.map_err @@ const @@
+  "Something went wrong. You can open the configuration file manually in a " ^
+  "text editor. On Windows, it is at %LOCALAPPDADA%\\lab-tools.toml. On macOS " ^
+  "and other Unix-like systems, it is located either at " ^
+  "$XDG_CONFIG_HOME/lab-tools.toml or $HOME/.config/lab-tools.toml"
 
 let generate_rosters lab data_path output_dir =
   let open Result.Infix in

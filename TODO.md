@@ -9,7 +9,7 @@
 - [x] output file/directory CLI option
 - [x] auto-rename on conflict
 - [x] List.hd/tl to explicit pattern match to prevent exceptions
-- [ ] setup default config on first run
+- [x] setup default config on first run
 - [ ] array formula for STDEV.P
 - [ ] function changes Reader env type (for configuration)
 - [x] plain help text
