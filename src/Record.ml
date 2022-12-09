@@ -109,8 +109,8 @@ let of_xlsx_sheets sheets =
         if String.mem ~sub:"Conclusion " s then Some Xlsx.(s, C.to_float @@ content r)
         else None in
       List.filter_map f record in
-    { name; section; grades; id = Error "ID not found" ;
-      sis_user_id; sis_login_id = Error "SIS Login ID not found" } in
+    { name; section; grades; id = Error "ID unknown" ;
+      sis_user_id; sis_login_id = Error "SIS Login ID unknown" } in
   let record_list_of_sheet sheet =
     match Xlsx.data sheet with
     | [] -> Error "Empty sheet"

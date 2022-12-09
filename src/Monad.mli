@@ -1,3 +1,4 @@
+(* Wrote this for fun, because why not *)
 module Reader : sig
   type ('r, 'a) t
   val run : ('r, 'a) t -> 'r -> 'a
@@ -13,6 +14,8 @@ module Reader : sig
   val ( let+ ) : ('r, 'a) t -> ('a -> 'b) -> ('r, 'b) t
 end
 
+(* A hand-coded monad stack--using modular functors will take too much typing
+   for no additional benefit *)
 module StateReader : sig
   type ('s, 'r, 'a) t
   val eval : ('s, 'r, 'a) t -> 's -> ('r, 'a) Reader.t

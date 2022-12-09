@@ -45,6 +45,7 @@ let of_data l =
   SectionMap.(add_list_with ~f:(fun _ a b -> a @ b) empty) m
     |> SectionMap.to_list
     |> List.map (fun (s, l) -> new_roster s l)
+    |> List.rev
 
 let to_xlsx lab checkpoints rosters =
   let open List in
@@ -60,7 +61,8 @@ let to_xlsx lab checkpoints rosters =
     Xlsx.new_sheet name data in
   let to_sheets checkpoints roster =
     let instructions = [
-       "Under the \"Signature\" column, leave blank if present, enter \"Absent\" if absent, describe circumstances if student left soon after quiz";
+       "Under the \"Signature\" column, leave blank if present, enter " ^
+       "\"Absent\" if absent, describe circumstances if student left soon after quiz";
        "Under the \"Late\" column, enter the amount of time if they are late" ] in
     let instrs =
       let+ s = instructions in

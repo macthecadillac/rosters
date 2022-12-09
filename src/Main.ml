@@ -6,8 +6,15 @@ open Common
 let to_string_err x = Result.map_err (fun (`Msg s) -> s) x
 
 let default_config =
-"# This section is mandatory. `lab-tools` won't run without this section. If this
-# section is incomplete, `lab-tools` might generate garbage.
+"# This is an example configuration to help you get started. This file is
+# already written to the correct location, so once you are done editing it,
+# simply save and close your text editor. You can always access this file by
+# running `lab-tools open-config`.
+#
+# This file is written in the TOML format. Lines prefixed with the \"#\" sign
+# are comments and will be ignored.
+#
+# This section is mandatory--`lab-tools` won't run without it.
 [ta-assignment]
 # LHS is the name of the TA. There cannot be spaces within a name.
 # RHS is the list of sections that the TA is assigned to. It must be a list of
@@ -25,7 +32,8 @@ Ting-Chun = [4, 14, 24, 34]
 Aniket = [37, 39]
 
 # This section is optional. `lab-tools` will run with default values if this is
-# missing
+# missing. This section is only used for roster generation. The values below are
+# for 1AL.
 [checkpoints]
 # LHS must be in the form of \"lab\" followed by an integer.
 # RHS is a list of strings. Entries must be enclosed in single or double quotes
@@ -95,7 +103,9 @@ let default_config_dir () =
     | "Unix" ->
         let p =
           let* user_dir = Result.to_opt @@ Bos.OS.Dir.user () in
-          Option.of_result (Bos.OS.Dir.must_exist Fpath.(user_dir / ".config")) in
+          let config_dir = Fpath.(user_dir / ".config") in
+          let+ _ = Option.of_result @@ Bos.OS.Dir.create config_dir in
+          config_dir in
         var "XDG_CONFIG_HOME" <+> p <+> cwd
     | _ -> None
 
@@ -108,10 +118,10 @@ let config_path () =
 
 let write_default_config () =
   let open Result.Infix in
-  let* path = match default_config_dir () with
-    | Some p -> Ok Fpath.(p / "lab-tools.toml")
-    | None -> Error "No configuration directory found. Abort." in
-  Bos.OS.File.write path default_config |> to_string_err
+  let msg = "No configuration directory found. Abort." in
+  let* config_dir = default_config_dir () |> Option.to_result msg in
+  Bos.OS.File.write Fpath.(config_dir / "lab-tools.toml") default_config
+    |> to_string_err
 
 let load_config () =
   let open Result.Infix in
@@ -141,7 +151,7 @@ let generate_rosters lab data_path output_dir =
   let open Result.Infix in
   let* ta_assignment, checkpoints_opt = load_config () in
   let* prefix = match output_dir with
-    | Some s -> Fpath.of_string s |> to_string_err
+    | Some s -> Fpath.of_string s >>= Bos.OS.Dir.must_exist |> to_string_err
     | None -> Bos.OS.Dir.current () |> to_string_err in
   let write_xlsx checkpoints rosters =
     let xlsx = Roster.to_xlsx lab checkpoints rosters in
@@ -199,48 +209,41 @@ let new_spreadsheet exported_path output_path =
   let open Result.Infix in
   let* path = choose_path "Grades.xlsx" output_path in
   let* section_map, _ = load_config () in
-  let* grade_spreadsheet = Fpath.of_string exported_path
+  Fpath.of_string exported_path
     >>= Bos.OS.File.read |> to_string_err
     >|= Record.of_csv_string
-    >>= Record.to_xlsx_sheets section_map in
-  Xlsx.write path grade_spreadsheet
+    >>= Record.to_xlsx_sheets section_map
+    >>= Xlsx.write path
 
 let () =
   let open Cmdliner in
+  let parse f pp = (fun s -> `Ok (f s)), Option.pp pp in
+  let parse_string = parse Option.pure String.pp in
   let rosters =
     let doc = "generate rosters" in
-    let lab = Arg.required
-      @@ Arg.opt ((fun s -> `Ok (Int.of_string s)), Option.pp Int.pp) None
+    let lab = Arg.required @@ Arg.opt (parse Int.of_string Int.pp) None
       @@ Arg.info ~doc:"lab number" ["lab"] in
-    let input = Arg.required
-      @@ Arg.opt ((fun s -> `Ok (Some s)), Option.pp String.pp) None
+    let input = Arg.required @@ Arg.opt parse_string None
       @@ Arg.info ~doc:"path to canvas exported csv file" ["input"; "i"] in
-    let output = Arg.value
-      @@ Arg.opt ((fun s -> `Ok (Some s)), Option.pp String.pp) None
+    let output = Arg.value @@ Arg.opt parse_string None
       @@ Arg.info ~doc:"output directory" ["output"; "o"] in
     Cmd.v (Cmd.info ~doc "rosters") Term.(const generate_rosters $ lab $ input $ output) in
   let merge =
     let doc = "merge data files" in
-    let left = Arg.required
-      @@ Arg.opt ((fun s -> `Ok (Some s)), Option.pp String.pp) None
+    let left = Arg.required @@ Arg.opt parse_string None
       @@ Arg.info ~doc:"path to canvas exported csv file" ["published"] in
-    let right = Arg.required
-      @@ Arg.opt ((fun s -> `Ok (Some s)), Option.pp String.pp) None
+    let right = Arg.required @@ Arg.opt parse_string None
       @@ Arg.info ~doc:"path to TA spreadsheet" ["latest"; "i"] in
-    let csv_out = Arg.value
-      @@ Arg.opt ((fun s -> `Ok (Some s)), Option.pp String.pp) None
+    let csv_out = Arg.value @@ Arg.opt parse_string None
       @@ Arg.info ~doc:"output csv" ["csv-out"] in
-    let xlsx_out = Arg.value
-      @@ Arg.opt ((fun s -> `Ok (Some s)), Option.pp String.pp) None
+    let xlsx_out = Arg.value @@ Arg.opt parse_string None
       @@ Arg.info ~doc:"output xlsx" ["xlsx-out"] in
     Cmd.v (Cmd.info ~doc "merge") Term.(const merge_data $ left $ right $ csv_out $ xlsx_out) in
   let new_spreadsheet =
     let doc = "create new TA grading sheet" in
-    let input = Arg.required
-      @@ Arg.opt ((fun s -> `Ok (Some s)), Option.pp String.pp) None
+    let input = Arg.required @@ Arg.opt parse_string None
       @@ Arg.info ~doc:"path to canvas exported csv file" ["input"; "i"] in
-    let output = Arg.value
-      @@ Arg.opt ((fun s -> `Ok (Some s)), Option.pp String.pp) None
+    let output = Arg.value @@ Arg.opt parse_string None
       @@ Arg.info ~doc:"output file name" ["output"; "o"] in
     Cmd.v (Cmd.info ~doc "new-spreadsheet") Term.(const new_spreadsheet $ input $ output) in
   let open_config =
