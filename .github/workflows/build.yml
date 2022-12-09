@@ -1,0 +1,26 @@
+name: build
+
+on:
+  workflow_dispatch
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  build:
+    runs-on:
+      - macos-latest
+      - ubuntu-18.04
+      - windows-latest
+
+    steps:        
+      - name: Setup OCaml Env
+        uses: ocaml/setup-ocaml@v1.1.11
+        with:
+          ocaml-version: 4.14.0
+      - name: Setup Rust Env
+        uses: actions/checkout@v3         
+      - name: Install dependencies
+        run: opam install . --deps-only
+      - name: Build
+        run: dune build @install
