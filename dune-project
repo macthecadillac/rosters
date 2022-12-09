@@ -1,20 +1,22 @@
 (lang dune 3.5)
 (name lab-tools)
-(version 3d39fae-dirty)
+(version 0.90)
 
 (generate_opam_files true)
+(maintainers "Mac Lee")
+(homepage "https://github.com/macthecadillac/lab-tools")
 
 (package
  (name lab-tools)
- (synopsis "FIXME:")
- (description "FIXME:")
+ (synopsis "Utility for 1-series lab management")
+ (description "Utility for 1-series lab management")
  (authors "Mac Lee")
  (depends
   (ocaml (= "4.14.0"))
   (dune (>= "1.5"))
   (conf-rust-2021 (= "1"))
   (containers (= "3.10"))
-  (cmdliner (= "1.1.0"))
+  (cmdliner (= "1.1.1"))
   (vg (= "0.9.4"))
   (csv (= "2.4"))
   (bos (= "0.2.1"))
