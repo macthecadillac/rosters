@@ -16,6 +16,7 @@ depends: [
   "csv" {= "2.4"}
   "bos" {= "0.2.1"}
   "gg" {= "1.0.0"}
+  "otoml" {= "1.0.3"}
   "ppx_blob" {= "0.7.2"}
   "odoc" {with-doc}
 ]
