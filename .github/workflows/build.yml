@@ -10,7 +10,7 @@ jobs:
   build:
     runs-on:
       - macos-latest
-      - ubuntu-18.04
+      - ubuntu-20.04
       - windows-latest
 
     steps:        
