@@ -27,4 +27,4 @@ jobs:
       - name: Install dependencies
         run: opam install . --deps-only
       - name: Build
-        run: dune build @install
+        run: opam exec -- dune build
