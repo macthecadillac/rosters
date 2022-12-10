@@ -28,9 +28,9 @@ jobs:
         with:
           ocaml-compiler: ${{ matrix.ocaml-compiler }}
       - name: Install dependencies
-        run: opam install . --destdir ~/install
+        run: opam install . --destdir install
       - name: Upload artifacts
         uses: actions/upload-artifact@v2
         with: 
           name: lab-tools
-          path: ~/install/bin
+          path: install/bin
