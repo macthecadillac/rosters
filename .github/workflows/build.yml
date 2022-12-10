@@ -8,8 +8,17 @@ env:
 
 jobs:
   build:
-    runs-on:
-      - macos-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        os:
+          - macos-latest
+          - ubuntu-latest
+          - windows-latest
+        ocaml-compiler:
+          - ocaml-variants.4.14.0+options,ocaml-option-flambda
+
+    runs-on: ${{ matrix.os }}
 
     steps:
       - name: Checkout code
@@ -17,7 +26,7 @@ jobs:
       - name: Setup OCaml Env
         uses: ocaml/setup-ocaml@v2
         with:
-          ocaml-compiler: ocaml-variants.4.14.0+options,ocaml-option-flambda
+          ocaml-compiler: ${{ matrix.ocaml-compiler }}
       - name: Install dependencies
         run: opam install . --deps-only
       - name: Build
