@@ -1,7 +1,8 @@
 name: build
 
 on:
-  push
+  push:
+    branches: main
 
 env:
   CARGO_TERM_COLOR: always
@@ -31,10 +32,19 @@ jobs:
       - run: mv _build/default/src/Main.exe lab-tools
       - run: chmod 755 lab-tools
       - run: strip lab-tools
+      - name: Import GPG key
+        id: import_gpg
+        uses: crazy-max/ghaction-import-gpg@v5
+        with:
+          gpg_private_key: ${{ secrets.GPG_PRIVATE_KEY }}
+          passphrase: ${{ secrets.GPG_KEY_PASSPHRASE }}
+      - name: Sign executable
+        run: gpg --sign lab-tools
       - name: Upload artifacts
         uses: actions/upload-artifact@v3
         with:
           name: lab-tools-${{ matrix.os }}-x86_64
           path: |
             lab-tools
+            lab-tools.gpg
             README.md
