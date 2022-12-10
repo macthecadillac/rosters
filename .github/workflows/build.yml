@@ -17,7 +17,7 @@ jobs:
       - name: Setup OCaml Env
         uses: ocaml/setup-ocaml@v1.1.11
         with:
-          ocaml-version: 4.14.0+flambda
+          ocaml-version: 4.14.0
       - name: Setup Rust Env
         uses: actions-rs/toolchain@v1
         with:
