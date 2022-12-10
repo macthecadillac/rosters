@@ -26,17 +26,12 @@ jobs:
         uses: ocaml/setup-ocaml@v2
         with:
           ocaml-compiler: ${{ matrix.ocaml-compiler }}
-      - name: Install dependencies
-        run: opam install . --deps-only
-      - name: Build
-        run: opam exec -- dune build
+      - run: opam install . --deps-only
+      - run: opam exec -- dune build
       - run: mv _build/default/src/Main.exe lab-tools
       - run: chmod 755 lab-tools
-      - name: Compress binaries
-        uses: svenstaro/upx-action@v2
-        with:
-          file: lab-tools
+      - run: strip lab-tools
       - uses: actions/upload-artifact@v3
         with:
-          name: lab-tools-${{ matrix.os }}
+          name: lab-tools-${{ matrix.os }}-x86_64
           path: lab-tools
