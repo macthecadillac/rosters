@@ -14,7 +14,6 @@ jobs:
         os:
           - macos-latest
           - ubuntu-latest
-          - windows-latest
         ocaml-compiler:
           - 4.14.x
 
@@ -31,3 +30,9 @@ jobs:
         run: opam install . --deps-only
       - name: Build
         run: opam exec -- dune build
+      - name: Move and rename finished executable
+        run: mv _build/default/src/Main.exe lab-tools
+      - uses: actions/upload-artifact@v3
+        with:
+          name: lab-tools
+          path: lab-tools
