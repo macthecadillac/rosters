@@ -39,12 +39,14 @@ jobs:
           gpg_private_key: ${{ secrets.GPG_PRIVATE_KEY }}
           passphrase: ${{ secrets.GPG_KEY_PASSPHRASE }}
       - name: Sign executable
-        run: gpg --sign lab-tools
+        run: gpg --output lab-tools.sig --detach-sig --armor lab-tools
+      - run: chmod 644 README.md
+      - run: chmod 644 lab-tools.sig
       - name: Upload artifacts
         uses: actions/upload-artifact@v3
         with:
           name: lab-tools-${{ matrix.os }}-x86_64
           path: |
             lab-tools
-            lab-tools.gpg
+            lab-tools.sig
             README.md
