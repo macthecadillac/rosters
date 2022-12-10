@@ -28,6 +28,9 @@ jobs:
         with:
           ocaml-compiler: ${{ matrix.ocaml-compiler }}
       - name: Install dependencies
-        run: opam install . --deps-only
-      - name: Build
-        run: opam exec -- dune build
+        run: opam install . --destdir ~/install
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v2
+        with: 
+          name: lab-tools
+          path: ~/install/bin
