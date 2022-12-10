@@ -30,9 +30,12 @@ jobs:
         run: opam install . --deps-only
       - name: Build
         run: opam exec -- dune build
-      - name: Move and rename finished executable
-        run: mv _build/default/src/Main.exe lab-tools
+      - run: mv _build/default/src/Main.exe lab-tools
+      - name: Compress binaries
+        uses: svenstaro/upx-action@v2
+        with:
+          file: lab-tools
       - uses: actions/upload-artifact@v3
         with:
-          name: lab-tools
+          name: lab-tools-${{ matrix.os }}
           path: lab-tools
