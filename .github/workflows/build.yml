@@ -1,19 +1,19 @@
 name: build
 
 on:
-  workflow_dispatch
+  push
 
 env:
   CARGO_TERM_COLOR: always
 
 jobs:
-  build:
+  build-unix:
     strategy:
       fail-fast: false
       matrix:
         os:
           - macos-latest
-          - ubuntu-latest
+          - ubuntu-20.04
         ocaml-compiler:
           - ocaml-variants.4.14.0+options,ocaml-option-flambda
 
@@ -31,7 +31,10 @@ jobs:
       - run: mv _build/default/src/Main.exe lab-tools
       - run: chmod 755 lab-tools
       - run: strip lab-tools
-      - uses: actions/upload-artifact@v3
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v3
         with:
           name: lab-tools-${{ matrix.os }}-x86_64
-          path: lab-tools
+          path: |
+            lab-tools
+            README.md
