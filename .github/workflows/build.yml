@@ -15,7 +15,7 @@ jobs:
           - macos-latest
           - ubuntu-latest
         ocaml-compiler:
-          - 4.14.x
+          - ocaml-variants.4.14.0+options,ocaml-option-flambda
 
     runs-on: ${{ matrix.os }}
 
