@@ -10,7 +10,7 @@ jobs:
   build:
     runs-on:
       - macos-latest
-      - ubuntu-20.04
+      - ubuntu-latest
       - windows-latest
 
     steps:
@@ -20,6 +20,12 @@ jobs:
         uses: ocaml/setup-ocaml@v1.1.11
         with:
           ocaml-version: 4.14.0
+      - name: Setup Rust Env
+        uses: actions-rs/toolchain@v1
+        with:
+          profile: minimal
+          toolchain: stable
+          override: true
       - name: Install dependencies
         run: opam install . --deps-only
       - name: Build
