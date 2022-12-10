@@ -18,12 +18,6 @@ jobs:
         uses: ocaml/setup-ocaml@v2
         with:
           ocaml-compiler: ocaml-variants.4.14.0+options,ocaml-option-flambda
-      - name: Setup Rust Env
-        uses: actions-rs/toolchain@v1
-        with:
-          profile: minimal
-          toolchain: stable
-          override: true
       - name: Install dependencies
         run: opam install . --deps-only
       - name: Build
