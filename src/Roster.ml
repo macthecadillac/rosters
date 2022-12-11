@@ -35,7 +35,7 @@ let new_roster section students =
         IntMap.add i (n :: IntMap.get_or ~default:[] i acc) acc) IntMap.empty
   in { section; groups }
 
-let of_data l =
+let of_records l =
   let open Result.Infix in
   let sec_map x =
     let* section = Record.section x in

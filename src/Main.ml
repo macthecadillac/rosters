@@ -113,14 +113,15 @@ let config_path () =
   let open Result.Infix in
   let msg = "No configuration directory found. Abort." in
   let* config_dir = default_config_dir () |> Option.to_result msg in
-  Bos.OS.File.must_exist Fpath.(config_dir / "lab-tools.toml")
+  (* use .txt because systems might not know how to open .toml *)
+  Bos.OS.File.must_exist Fpath.(config_dir / "lab-tools.txt")
     |> Result.map_err (const config_not_found_msg)
 
 let write_default_config () =
   let open Result.Infix in
   let msg = "No configuration directory found. Abort." in
   let* config_dir = default_config_dir () |> Option.to_result msg in
-  Bos.OS.File.write Fpath.(config_dir / "lab-tools.toml") default_config
+  Bos.OS.File.write Fpath.(config_dir / "lab-tools.txt") default_config
     |> to_string_err
 
 let load_config () =
@@ -142,11 +143,9 @@ let open_config_in_editor () =
     | "Win32" -> Ok (Bos.Cmd.v @@ Fpath.to_string path)
     | _ -> Error "unsupported platform for this option" in
   Bos.OS.Cmd.run cmd |> Result.map_err @@ const @@
-  "Something went wrong. This is most likely because you have never opened " ^
-  "a TOML file on your system and it does not know what app to open it " ^
-  "with. You can open the configuration file manually in a text editor such " ^
-  "as Sublime, Notepad++ or TextEdit. On your system, the configuration " ^
-  Format.sprintf "file is located at %a" Fpath.pp path
+  "Something went wrong. You can open the configuration file manually in a " ^
+  "text editor such as Sublime, Notepad++ or TextEdit. On your system, the " ^
+  "configuration " ^ Format.sprintf "file is located at %a" Fpath.pp path
 
 let generate_rosters lab data_path output_dir =
   let open Result.Infix in
