@@ -56,28 +56,36 @@ The configuration is done via the TOML language. Here is a sample configuration
 with all the recognized keys:
 
 ```toml
-# This section is mandatory. `lab-tools` won't run without this section. If this
-# section is incomplete, `lab-tools` might generate garbage.
+# This is an example configuration to help you get started. This file is
+# already written to the correct location, so once you are done editing it,
+# simply save and close your text editor. You can always access this file by
+# running `lab-tools open-config`.
+#
+# This file is written in the TOML format. Lines prefixed with the \"#\" sign
+# are comments and will be ignored.
+#
+# This section is mandatory--`lab-tools` won't run without it.
 [ta-assignment]
 # LHS is the name of the TA. There cannot be spaces within a name.
 # RHS is the list of sections that the TA is assigned to. It must be a list of
 # integers separated by commas.
-Casey = [38, 40]
-Harry = [17, 19, 29, 35]
-Luke = [3, 21, 23, 33]
-Kshitij = [7, 9, 28, 30]
-Sophia = [10, 18, 20, 36]
-Wanda = [5, 13, 15, 25]
-Guru = [1, 11, 27, 31]
-Hannah = [2, 12, 22, 32]
-Billy = [6, 8, 16, 26]
-Ting-Chun = [4, 14, 24, 34]
-Aniket = [37, 39]
+Joe = [38, 40]
+Donny = [17, 19, 29, 35]
+Barry = [3, 21, 23, 33]
+Walker = [7, 9, 28, 30]
+Billy = [10, 18, 20, 36]
+Herbert = [5, 13, 15, 25]
+Ronny = [1, 11, 27, 31]
+Jimmy = [2, 12, 22, 32]
+Jerry = [6, 8, 16, 26]
+Ricky = [4, 14, 24, 34]
+Lyndon = [37, 39]
 
 # This section is optional. `lab-tools` will run with default values if this is
-# missing
+# missing. This section is only used for roster generation. The values below are
+# for 1AL.
 [checkpoints]
-# LHS must be in the form of "lab" followed by an integer.
+# LHS must be in the form of \"lab\" followed by an integer.
 # RHS is a list of strings. Entries must be enclosed in single or double quotes
 # separted by commas.
 lab1 = ['A', 'B5', 'C1', 'C2']

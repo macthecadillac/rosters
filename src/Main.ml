@@ -19,17 +19,17 @@ let default_config =
 # LHS is the name of the TA. There cannot be spaces within a name.
 # RHS is the list of sections that the TA is assigned to. It must be a list of
 # integers separated by commas.
-Casey = [38, 40]
-Harry = [17, 19, 29, 35]
-Luke = [3, 21, 23, 33]
-Kshitij = [7, 9, 28, 30]
-Sophia = [10, 18, 20, 36]
-Wanda = [5, 13, 15, 25]
-Guru = [1, 11, 27, 31]
-Hannah = [2, 12, 22, 32]
-Billy = [6, 8, 16, 26]
-Ting-Chun = [4, 14, 24, 34]
-Aniket = [37, 39]
+Joe = [38, 40]
+Donny = [17, 19, 29, 35]
+Barry = [3, 21, 23, 33]
+Walker = [7, 9, 28, 30]
+Billy = [10, 18, 20, 36]
+Herbert = [5, 13, 15, 25]
+Ronny = [1, 11, 27, 31]
+Jimmy = [2, 12, 22, 32]
+Jerry = [6, 8, 16, 26]
+Ricky = [4, 14, 24, 34]
+Lyndon = [37, 39]
 
 # This section is optional. `lab-tools` will run with default values if this is
 # missing. This section is only used for roster generation. The values below are
