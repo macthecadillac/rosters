@@ -62,10 +62,10 @@ let read_config config =
   let maybe_assoc f s = Option.map (Pair.make s) % from_array f in
   let* ta_assignment =
     let f = function Otoml.TomlInteger i -> Some (Section.of_int i) | _ -> None in
-    let* table = Otoml.find_result config Otoml.get_table ["ta-assignment"] in
-    List.map (uncurry (maybe_assoc f)) table
-      |> Option.sequence_l
-      |> Option.to_result "cannot read the \"ta-assignment\" section"
+    Otoml.find_result config Otoml.get_table ["ta-assignment"]
+      >>= List.map (uncurry (maybe_assoc f))
+      %> Option.sequence_l
+      %> Option.to_result "cannot read the \"ta-assignment\" section"
       >|= StringMap.of_list in
   let+ checkpoints =
     let f = function Otoml.TomlString s -> Some s | _ -> None in
@@ -125,10 +125,10 @@ let write_default_config () =
 
 let load_config () =
   let open Result.Infix in
-  let* path = config_path () in
-  let* toml = Bos.OS.File.read path
-    |> Result.map_err @@ const @@ config_not_found_msg in
-  Otoml.Parser.from_string_result toml
+  config_path ()
+    >>= Bos.OS.File.read
+    %> Result.map_err (const config_not_found_msg)
+    >>= Otoml.Parser.from_string_result
     >>= read_config
     |> Result.add_ctx " malformed configuration file"
 
@@ -142,10 +142,11 @@ let open_config_in_editor () =
     | "Win32" -> Ok (Bos.Cmd.v @@ Fpath.to_string path)
     | _ -> Error "unsupported platform for this option" in
   Bos.OS.Cmd.run cmd |> Result.map_err @@ const @@
-  "Something went wrong. You can open the configuration file manually in a " ^
-  "text editor. On Windows, it is at %LOCALAPPDADA%\\lab-tools.toml. On macOS " ^
-  "and other Unix-like systems, it is located either at " ^
-  "$XDG_CONFIG_HOME/lab-tools.toml or $HOME/.config/lab-tools.toml"
+  "Something went wrong. This is most likely because you have never opened " ^
+  "a TOML file on your system and it does not know what app to open it " ^
+  "with. You can open the configuration file manually in a text editor such " ^
+  "as Sublime, Notepad++ or TextEdit. On your system, the configuration " ^
+  Format.sprintf "file is located at %a" Fpath.pp path
 
 let generate_rosters lab data_path output_dir =
   let open Result.Infix in
@@ -175,9 +176,10 @@ let generate_rosters lab data_path output_dir =
   let checkpoints =
     let default = ["1"; "2"; "3"; "4"] in
     Option.(checkpoints_opt >>= IntMap.get lab |> get_or ~default) in
-  let* fpath = Fpath.of_string data_path |> to_string_err in
-  let* s = Bos.OS.File.read fpath |> to_string_err in
-  let* rosters = Record.of_csv_string s |> Roster.of_data in
+  let* rosters =
+    Fpath.of_string data_path |> to_string_err
+    >>= Bos.OS.File.read %> to_string_err
+    >>= Record.of_csv_string %> Roster.of_records in
   let* () = write_xlsx checkpoints rosters in
   write_pdf checkpoints rosters
 
@@ -192,13 +194,13 @@ let merge_data published_path unpublished_path csv_output_path xlsx_output_path 
   let* csv_out_fpath = choose_path "Updated Grades.csv" csv_output_path in
   let* xlsx_out_fpath = choose_path "Updated Grades.xlsx" xlsx_output_path in
   let* latest =
-    let* fpath = Fpath.of_string unpublished_path |> to_string_err in
-    let* xlsx = Xlsx.read fpath in
-    Record.of_xlsx_sheets xlsx in
+    Fpath.of_string unpublished_path |> to_string_err
+    >>= Xlsx.read
+    >>= Record.of_xlsx_sheets in
   let* published =
-    let* fpath = Fpath.of_string published_path |> to_string_err in
-    let+ s = Bos.OS.File.read fpath |> to_string_err in
-    Record.of_csv_string s in
+    Fpath.of_string published_path |> to_string_err
+    >>= Bos.OS.File.read %> to_string_err
+    >|= Record.of_csv_string in
   let merged = Record.update_grades published latest in
   let* updated_ta_grade_sheet = Record.to_xlsx_sheets section_map merged in
   let* to_be_published = Record.to_csv_string merged in
