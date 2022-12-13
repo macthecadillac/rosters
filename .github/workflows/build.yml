@@ -27,7 +27,7 @@ jobs:
         run: |
           opam install . --deps-only
           opam exec -- dune build
-      - name: Post
+      - name: Rename, strip and sign
         run: |
           mv _build/default/src/Main.exe lab-tools
           chmod 755 lab-tools
@@ -57,14 +57,13 @@ jobs:
         run: |
           opam install . --deps-only
           opam exec -- dune build
-      - name: Post
+      - name: Rename and strip
         run: |
           mv _build/default/src/Main.exe lab-tools
           chmod 755 lab-tools
           strip lab-tools
           chmod 644 README.md
-          chmod 644 lab-tools.sig
-      - name: Sign executable
+      - name: Sign
         env: 
           BUILD_CA: ${{ secrets.BUILD_CERTIFICATE_BASE64 }}
           CA_PWD: ${{ secrets.P12_PASSWORD }}
