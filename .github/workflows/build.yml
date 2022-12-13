@@ -69,7 +69,8 @@ jobs:
           CA_PWD: ${{ secrets.P12_PASSWORD }}
           KEYCHAIN_PWD: ${{ secrets.MACOS_KEYCHAIN_PWD }}
         run: |
-          echo $BUILD_CA | base64 —-decode -i - > certificate.p12
+          echo $BUILD_CA > cert_base64
+          base64 -D -i cert_base64 -o certificate.p12
           security create-keychain -p $KEYCHAIN_PWD build.keychain
           security default-keychain -s build.keychain
           security unlock-keychain -p $KEYCHAIN_PWD build.keychain
