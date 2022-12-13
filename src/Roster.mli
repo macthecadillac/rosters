@@ -1,4 +1,3 @@
-open Containers
 open Common
 
 type t
