@@ -8,45 +8,80 @@ env:
   CARGO_TERM_COLOR: always
 
 jobs:
-  build-unix:
-    strategy:
-      fail-fast: false
-      matrix:
-        os:
-          - macos-latest
-          - ubuntu-20.04
-        ocaml-compiler:
-          - ocaml-variants.4.14.0+options,ocaml-option-flambda
-
-    runs-on: ${{ matrix.os }}
-
+  build-linux:
+    runs-on: ubuntu-20.04
     steps:
       - name: Checkout code
         uses: actions/checkout@v3
       - name: Setup OCaml Env
         uses: ocaml/setup-ocaml@v2
         with:
-          ocaml-compiler: ${{ matrix.ocaml-compiler }}
-      - run: opam install . --deps-only
-      - run: opam exec -- dune build
-      - run: mv _build/default/src/Main.exe lab-tools
-      - run: chmod 755 lab-tools
-      - run: strip lab-tools
+          ocaml-compiler: ocaml-variants.4.14.0+options,ocaml-option-flambda
       - name: Import GPG key
         id: import_gpg
         uses: crazy-max/ghaction-import-gpg@v5
         with:
           gpg_private_key: ${{ secrets.GPG_PRIVATE_KEY }}
           passphrase: ${{ secrets.GPG_KEY_PASSPHRASE }}
-      - name: Sign executable
-        run: gpg --output lab-tools.sig --detach-sig --armor lab-tools
-      - run: chmod 644 README.md
-      - run: chmod 644 lab-tools.sig
+      - name: Build
+        run: |
+          opam install . --deps-only
+          opam exec -- dune build
+      - name: Post
+        run: |
+          mv _build/default/src/Main.exe lab-tools
+          chmod 755 lab-tools
+          strip lab-tools
+          gpg --output lab-tools.sig --detach-sig --armor lab-tools
+          chmod 644 README.md
+          chmod 644 lab-tools.sig
       - name: Upload artifacts
         uses: actions/upload-artifact@v3
         with:
-          name: lab-tools-${{ matrix.os }}-x86_64
+          name: lab-tools-ubuntu-20.04-x86_64
           path: |
             lab-tools
             lab-tools.sig
+            README.md
+
+  build-macos:
+    runs-on: macos-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+      - name: Setup OCaml Env
+        uses: ocaml/setup-ocaml@v2
+        with:
+          ocaml-compiler: ocaml-variants.4.14.0+options,ocaml-option-flambda
+      - name: Build
+        run: |
+          opam install . --deps-only
+          opam exec -- dune build
+      - name: Post
+        run: |
+          mv _build/default/src/Main.exe lab-tools
+          chmod 755 lab-tools
+          strip lab-tools
+          chmod 644 README.md
+          chmod 644 lab-tools.sig
+      - name: Sign executable
+        env: 
+          BUILD_CA: ${{ secrets.BUILD_CERTIFICATE_BASE64 }}
+          CA_PWD: ${{ secrets.P12_PASSWORD }}
+          KEYCHAIN_PWD: ${{ secrets.MACOS_KEYCHAIN_PWD }}
+        run: |
+          echo $BUILD_CA | base64 —decode > certificate.p12
+          security create-keychain -p $KEYCHAIN_PWD build.keychain
+          security default-keychain -s build.keychain
+          security unlock-keychain -p $KEYCHAIN_PWD build.keychain
+          security import certificate.p12 -k build.keychain -P $CA_PWD -T /usr/bin/codesign
+          security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k $KEYCHAIN_PWD build.keychain
+          /usr/bin/codesign --force -s 1835F1EA8D9878A4BA1AAB3E56AA641780D44656 lab-tools -v
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v3
+        with:
+          name: lab-tools-macos-latest-x86_64
+          path: |
+            lab-tools
             README.md
