@@ -85,7 +85,7 @@ Lyndon = [37, 39]
 # missing. This section is only used for roster generation. The values below are
 # for 1AL.
 [checkpoints]
-# LHS must be in the form of \"lab\" followed by an integer.
+# LHS must be in the form of "lab" followed by an integer.
 # RHS is a list of strings. Entries must be enclosed in single or double quotes
 # separted by commas.
 lab1 = ['A', 'B5', 'C1', 'C2']
@@ -111,3 +111,14 @@ $ lab-tools new-spreadsheet -i /path/to/canvas.csv -o /path/to/output/file
 $ lab-tools merge --published /path/to/canvas.csv --latest /path/to/TA/grading/spreadsheet
 $ lab-tools merge --published /path/to/canvas.csv --latest /path/to/TA/grading/spreadsheet --csv-out /path/to/updated.csv --xlsx-out /path/to/updated.xlsx
 ```
+
+# Building from source
+Compiling from source requires the OCaml, Rust, and the C toolchains installed
+on your system. For the C compiler, install it from your operating system's
+package manager. For Linux, use `apt`, `dnf`, `zypper` or whatever package
+manager that comes with your system. For macOS, the C-compiler comes with Xcode,
+but you can also use Homebrew or MacPorts to get a more up-to-date version of
+`clang` or `gcc`. For OCaml and Rust, follow instructions on the [Rust
+website](https://www.rust-lang.org/) and the [OPAM
+website](https://opam.ocaml.org/). Once you have installed all of the toolchains
+on your system, run `opam install .` from the root directory of the project.
