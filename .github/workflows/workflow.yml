@@ -31,7 +31,7 @@ jobs:
           chmod 755 lab-tools
           strip lab-tools
           gpg --output lab-tools.sig --detach-sig --armor lab-tools
-          tar -czvf lab-tools-linux-x86_64.tar.gz lab-tools lab-tools.sig README.md
+          tar -czvf lab-tools-linux-x86_64.tar.gz lab-tools lab-tools.sig README.md LICENSE
       - name: Upload artifacts
         uses: actions/upload-artifact@v3
         with:
@@ -70,7 +70,7 @@ jobs:
           security import certificate.p12 -k build.keychain -P $CA_PWD -T /usr/bin/codesign
           security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k $KEYCHAIN_PWD build.keychain
           /usr/bin/codesign --force -s 1835F1EA8D9878A4BA1AAB3E56AA641780D44656 lab-tools -v
-          zip lab-tools-macos-x86_64.zip lab-tools README.md
+          zip lab-tools-macos-x86_64.zip lab-tools README.md LICENSE
       - name: Upload artifacts
         uses: actions/upload-artifact@v3
         with:
