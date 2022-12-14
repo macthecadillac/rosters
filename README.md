@@ -1,9 +1,9 @@
 # Setup
 
 `lab-tools` has no external dependency aside from a functioning OS. Simply
-download the appropriate executable from the [release
-page](https://github.com/macthecadillac/lab-tools/releases) for your platform
-and run in the terminal.
+download the appropriate executable for your platform from the [release
+page](https://github.com/macthecadillac/lab-tools/releases) and run in the
+terminal.
 
 # Usage
 
