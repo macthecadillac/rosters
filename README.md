@@ -1,7 +1,9 @@
 # Setup
 
-`lab-tools` has no external dependency aside from a functioning OS. Just
-download the appropriate executable for your platform and run in the terminal.
+`lab-tools` has no external dependency aside from a functioning OS. Simply
+download the appropriate executable from the [release
+page](https://github.com/macthecadillac/lab-tools/releases) for your platform
+and run in the terminal.
 
 # Usage
 
@@ -46,7 +48,7 @@ make sure that ALL entries have correct student IDs in the spreadsheet or
 
 # Configuration
 
-On windows, the configuration file is located at
+On Windows, the configuration file is located at
 `%LOCALAPPDATA%\lab-tools.toml`. On Unix (such as macOS)/Unix-like (such as
 Linux) systems with the environmental variable `$XDG_CONFIG_HOME` set, the
 configuration file is located at `$XDG_CONFIG_HOME/lab-tools.toml`, otherwise it
@@ -102,23 +104,38 @@ lab9 = ['A3', 'B2', 'B9', 'C4']
 # Examples
 
 ```sh
+# open configuration
 $ lab-tools open-config
+
+# generate rosters from a Canvas exported CSV file
 $ lab-tools rosters --lab 1 --input /path/to/canvas.csv
+
+# generate rosters from a Canvas exported CSV file, specifying output file
 $ lab-tools rosters --lab 2 -i /path/to/canvas.csv -o /path/to/output/directory
+
+# generate new grading spreadsheet from a Canvas exported CSV file
 $ lab-tools new-spreadsheet --input /path/to/canvas.csv
+
+# generate new grading spreadsheet from a Canvas exported CSV file, specifying output file
 $ lab-tools new-spreadsheet --input /path/to/canvas.csv --output /path/to/output/file
 $ lab-tools new-spreadsheet -i /path/to/canvas.csv -o /path/to/output/file
+
+# merge grading spreadsheet with a Canvas CSV file, creating a new CSV file for upload and a grading spreadsheet corresponding to the latest roster on Canvas
 $ lab-tools merge --published /path/to/canvas.csv --latest /path/to/TA/grading/spreadsheet
+
+# merge grading spreadsheet with a Canvas CSV file, specifying output files
 $ lab-tools merge --published /path/to/canvas.csv --latest /path/to/TA/grading/spreadsheet --csv-out /path/to/updated.csv --xlsx-out /path/to/updated.xlsx
 ```
 
 # Building from source
-Compiling from source requires the OCaml, Rust, and the C toolchains installed
-on your system. For the C compiler, install it from your operating system's
-package manager. For Linux, use `apt`, `dnf`, `zypper` or whatever package
-manager that comes with your system. For macOS, the C-compiler comes with Xcode,
-but you can also use Homebrew or MacPorts to get a more up-to-date version of
-`clang` or `gcc`. For OCaml and Rust, follow instructions on the [Rust
-website](https://www.rust-lang.org/) and the [OPAM
-website](https://opam.ocaml.org/). Once you have installed all of the toolchains
-on your system, run `opam install .` from the root directory of the project.
+Compiling from source requires the following build tools:
+
+|Tool|Version requirement|
+|----|-----|
+|Rust| >= 1.64.0|
+|OCaml| >= 4.08.0, < 5.0.0|
+| OPAM| >= 2.0|
+|GCC or Clang|Any recent version|
+
+With these tools properly installed, run `opam install .` from the root
+directory of the project.
