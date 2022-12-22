@@ -161,24 +161,23 @@ let text_box text placement width (H box_height) border_width =
     Vg.I.cut ~area path color in
   Vg.I.blend text_path box_path
 
-let write_column_header chkpts img =
+let write_column_header checkpoints img =
   let open SR in
   let* x, y = get in
   let* box_height = lift_reader auto_box_height in
-  let* checkpoints =
+  let* chkpts =
     let chkpt_w x =
       let box_width = lift_reader (auto_box_width x) in
       (fun x -> M x) % Length.max box_height <$> box_width in
-    List.map (fun x -> Pair.make <$> chkpt_w x <*> pure x) chkpts |> sequence_l in
+    List.map (fun x -> Pair.make <$> chkpt_w x <*> pure x) checkpoints |> sequence_l in
   let left_headings = [M (Length.of_mm 22.), "Signature"; A, "Late"; A, "Group"] in
-  let right_headings = checkpoints @ [A, "TA Check"]in
+  let right_headings = chkpts @ [A, "TA Check"]in
   let width = function
     | A, s -> lift_reader (auto_box_width s)
     | M w, _ -> pure w in
-  let accum_m _ =
+  let sum_width =
     let g acc x = Length.(+) <$> acc <*> x in
     List.fold_left g (pure Length.zero) % List.map width in
-  let sum_width = accum_m Length.(+) in
   let* lwidth = sum_width left_headings in
   let* rwidth = sum_width right_headings in
   let mid_width = Length.((l - 2. *.. margin) - lwidth - rwidth) in
