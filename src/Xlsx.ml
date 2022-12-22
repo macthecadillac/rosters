@@ -25,8 +25,6 @@ type cell = { typography : typography Option.t;
               content : Content.t}
 
 type sheet = { name : String.t;
-               freeze_row : Int.t Option.t;
-               freeze_col : Int.t Option.t;
                data : cell List.t List.t }
 
 type workbook = { sheets : sheet List.t }
@@ -38,12 +36,6 @@ external _write: String.t -> workbook -> (unit, String.t) Result.t = "write_xlsx
 let write path sheets = Result.map_err (fun s -> "xlsxwriter-rs: " ^ s)
   @@ _write (Fpath.to_string path) { sheets }
 
-external _read: String.t -> (workbook, String.t) Result.t = "read_xlsx"
-
-let read = Fpath.to_string %> _read
-                           %> Result.map_err (fun s -> "xlsxwriter-rs: " ^ s)
-                           %> Result.map (fun wb -> wb.sheets)
-
 let empty_cell =
   let typography = None in
   let color = Black in
@@ -53,11 +45,7 @@ let empty_cell =
 
 let new_cell typography color font content = { typography; color; font; content }
 
-let new_sheet name data = { name; freeze_row = None; freeze_col = None; data }
-
-let freeze_row row t = { t with freeze_row = Some row }
-
-let freeze_col col t = { t with freeze_col = Some col }
+let new_sheet name data = { name; data }
 
 let num_rows { data; _ } = List.length data
 

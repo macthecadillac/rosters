@@ -14,7 +14,6 @@
  (depends
   (ocaml (= "4.14.0"))
   (dune (>= "1.5"))
-  (conf-rust-2021 (= "1"))
   (containers (= "3.10"))
   (cmdliner (= "1.1.1"))
   (vg (= "0.9.4"))

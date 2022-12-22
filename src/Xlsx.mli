@@ -30,10 +30,6 @@ val set_color : color -> cell -> cell
 
 val set_type : typography -> cell -> cell
 
-val freeze_col : Int.t -> sheet -> sheet
-
-val freeze_row : Int.t -> sheet -> sheet
-
 val num_rows : sheet -> Int.t
 
 val text_cell : String.t -> cell
@@ -49,5 +45,3 @@ val data : sheet -> cell List.t List.t
 val content : cell -> Content.t
 
 val write : Fpath.t -> sheet List.t -> (Unit.t, String.t) result
-
-val read : Fpath.t -> (sheet List.t, String.t) Result.t

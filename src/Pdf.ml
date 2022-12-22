@@ -15,11 +15,8 @@ module Length : sig
   val of_in : Float.t -> t
   val of_mm : Float.t -> t
   val of_pt : Float.t -> t
-  val of_float : Float.t -> t
   val of_int : Int.t -> t
-  val to_in : t -> Float.t
   val to_mm : t -> Float.t
-  val to_pt : t -> Float.t
   val (+) : t -> t -> t
   val (-) : t -> t -> t
   val ( * ) : t -> t -> t
@@ -29,13 +26,10 @@ end = struct
   type t = Float.t
   let zero = 0.
   let of_in t = t
-  let of_float t = t
   let of_int t = Float.of_int t
   let of_mm t = t /. 25.4
   let of_pt t = of_mm (t *. 0.34)
-  let to_in t = t
   let to_mm t = t *. 25.4
-  let to_pt t = to_mm t /. 0.34
   let ( + ) a b = a +. b
   let ( - ) a b = a -. b
   let ( * ) a b = a *. b
@@ -73,8 +67,6 @@ let v2 a b = Gg.V2.v (Length.to_mm a) (Length.to_mm b)
 let canvas_size = v2 l h
 
 let canvas_view = Gg.Box2.v Gg.P2.o canvas_size
-
-let top_left = v2 Length.zero h
 
 module IntMap = Map.Make (Int)
 
@@ -183,7 +175,7 @@ let write_column_header chkpts img =
   let width = function
     | A, s -> lift_reader (auto_box_width s)
     | M w, _ -> pure w in
-  let accum_m f =
+  let accum_m _ =
     let g acc x = Length.(+) <$> acc <*> x in
     List.fold_left g (pure Length.zero) % List.map width in
   let sum_width = accum_m Length.(+) in

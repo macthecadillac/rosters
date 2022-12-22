@@ -9,12 +9,12 @@ let default_config =
 "# This is an example configuration to help you get started. This file is
 # already written to the correct location, so once you are done editing it,
 # simply save and close your text editor. You can always access this file by
-# running `lab-tools open-config`.
+# running `rosters open-config`.
 #
 # This file is written in the TOML format. Lines prefixed with the \"#\" sign
 # are comments and will be ignored.
 #
-# This section is mandatory--`lab-tools` won't run without it.
+# This section is mandatory--`rosters` won't run without it.
 [ta-assignment]
 # LHS is the name of the TA. There cannot be spaces within a name.
 # RHS is the list of sections that the TA is assigned to. It must be a list of
@@ -31,7 +31,7 @@ Jerry = [6, 8, 16, 26]
 Ricky = [4, 14, 24, 34]
 Lyndon = [37, 39]
 
-# This section is optional. `lab-tools` will run with default values if this is
+# This section is optional. `rosters` will run with default values if this is
 # missing. This section is only used for roster generation. The values below are
 # for 1AL.
 [checkpoints]
@@ -50,8 +50,8 @@ lab9 = ['A3', 'B2', 'B9', 'C4']
 "
 
 let config_not_found_msg =
-  "Configuration not found. `lab-tools` cannot run without first being " ^
-  "configured. Edit the configuraton file by running `lab-tools open-config` " ^
+  "Configuration not found. `rosters` cannot run without first being " ^
+  "configured. Edit the configuraton file by running `rosters open-config` " ^
   "then try again."
 
 let read_config config =
@@ -114,14 +114,14 @@ let config_path () =
   let msg = "No configuration directory found. Abort." in
   let* config_dir = default_config_dir () |> Option.to_result msg in
   (* use .txt because systems might not know how to open .toml *)
-  Bos.OS.File.must_exist Fpath.(config_dir / "lab-tools.txt")
+  Bos.OS.File.must_exist Fpath.(config_dir / "rosters.txt")
     |> Result.map_err (const config_not_found_msg)
 
 let write_default_config () =
   let open Result.Infix in
   let msg = "No configuration directory found. Abort." in
   let* config_dir = default_config_dir () |> Option.to_result msg in
-  Bos.OS.File.write Fpath.(config_dir / "lab-tools.txt") default_config
+  Bos.OS.File.write Fpath.(config_dir / "rosters.txt") default_config
     |> to_string_err
 
 let load_config () =
@@ -178,43 +178,9 @@ let generate_rosters lab data_path output_dir =
   let* rosters =
     Fpath.of_string data_path |> to_string_err
     >>= Bos.OS.File.read %> to_string_err
-    >>= Record.of_csv_string %> Roster.of_records in
+    >|= Roster.of_csv_string in
   let* () = write_xlsx checkpoints rosters in
   write_pdf checkpoints rosters
-
-let choose_path default user_path =
-  let open Result.Infix in
-  Option.get_or ~default user_path |> Fpath.of_string
-    >>= rename_if_exists |> to_string_err
-
-let merge_data published_path unpublished_path csv_output_path xlsx_output_path =
-  let open Result.Infix in
-  let* section_map, _ = load_config () in
-  let* csv_out_fpath = choose_path "Updated Grades.csv" csv_output_path in
-  let* xlsx_out_fpath = choose_path "Updated Grades.xlsx" xlsx_output_path in
-  let* latest =
-    Fpath.of_string unpublished_path |> to_string_err
-    >>= Xlsx.read
-    >>= Record.of_xlsx_sheets in
-  let* published =
-    Fpath.of_string published_path |> to_string_err
-    >>= Bos.OS.File.read %> to_string_err
-    >|= Record.of_csv_string in
-  let merged = Record.update_grades published latest in
-  let* updated_ta_grade_sheet = Record.to_xlsx_sheets section_map merged in
-  let* to_be_published = Record.to_csv_string merged in
-  let* () = Xlsx.write xlsx_out_fpath updated_ta_grade_sheet in
-  Bos.OS.File.write csv_out_fpath to_be_published |> to_string_err
-
-let new_spreadsheet exported_path output_path =
-  let open Result.Infix in
-  let* path = choose_path "Grades.xlsx" output_path in
-  let* section_map, _ = load_config () in
-  Fpath.of_string exported_path
-    >>= Bos.OS.File.read |> to_string_err
-    >|= Record.of_csv_string
-    >>= Record.to_xlsx_sheets section_map
-    >>= Xlsx.write path
 
 let () =
   let open Cmdliner in
@@ -229,28 +195,10 @@ let () =
     let output = Arg.value @@ Arg.opt parse_string None
       @@ Arg.info ~doc:"output directory" ["output"; "o"] in
     Cmd.v (Cmd.info ~doc "rosters") Term.(const generate_rosters $ lab $ input $ output) in
-  let merge =
-    let doc = "merge data files" in
-    let left = Arg.required @@ Arg.opt parse_string None
-      @@ Arg.info ~doc:"path to canvas exported csv file" ["published"] in
-    let right = Arg.required @@ Arg.opt parse_string None
-      @@ Arg.info ~doc:"path to TA spreadsheet" ["latest"; "i"] in
-    let csv_out = Arg.value @@ Arg.opt parse_string None
-      @@ Arg.info ~doc:"output csv" ["csv-out"] in
-    let xlsx_out = Arg.value @@ Arg.opt parse_string None
-      @@ Arg.info ~doc:"output xlsx" ["xlsx-out"] in
-    Cmd.v (Cmd.info ~doc "merge") Term.(const merge_data $ left $ right $ csv_out $ xlsx_out) in
-  let new_spreadsheet =
-    let doc = "create new TA grading sheet" in
-    let input = Arg.required @@ Arg.opt parse_string None
-      @@ Arg.info ~doc:"path to canvas exported csv file" ["input"; "i"] in
-    let output = Arg.value @@ Arg.opt parse_string None
-      @@ Arg.info ~doc:"output file name" ["output"; "o"] in
-    Cmd.v (Cmd.info ~doc "new-spreadsheet") Term.(const new_spreadsheet $ input $ output) in
   let open_config =
     let doc = "open configuration file in text editor" in
     Cmd.v (Cmd.info ~doc "open-config") Term.(const open_config_in_editor $ const ()) in
   let main =
-    let doc = "lab-tools" in
-    Cmd.(group (info ~doc "lab-tools") [rosters; merge; new_spreadsheet; open_config]) in
+    let doc = "rosters" in
+    Cmd.(group (info ~doc "rosters") [rosters; open_config]) in
   exit @@ Cmd.eval_result main

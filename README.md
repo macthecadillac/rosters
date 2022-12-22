@@ -27,21 +27,6 @@ This will generate randomized rosters for every section in the current working
 directory along with an xlsx file mirroring the pdfs for data entry purposes.
 You can specify checkpoints for the lab through the configuration file.
 
-## new-spreadsheet
-
-`lab-tools new-spreadsheet --input /path/to/data.csv` will
-generate an Excel file from the Canvas exported `data.csv` for grade entry.
-
-## merge
-
-`lab-tools merge --published /path/to/data.csv --latest /path/to/current.xlsx`
-will combine the up-to-date grades in `current.xlsx` with data in `data.csv` and
-generate an updated data file suitable for uploading to Canvas. It also outputs
-another Excel file that takes into account added/dropped students reflected in
-the latest data file from Canvas. If and when the TAs make changes to the file,
-make sure that ALL entries have correct student IDs in the spreadsheet or
-`lab-tools` will skip the row.
-
 ## open-config
 
 `lab-tools open-config` opens the configuration file in the default text editor.
@@ -112,19 +97,6 @@ $ lab-tools rosters --lab 1 --input /path/to/canvas.csv
 
 # generate rosters from a Canvas exported CSV file, specifying output file
 $ lab-tools rosters --lab 2 -i /path/to/canvas.csv -o /path/to/output/directory
-
-# generate new grading spreadsheet from a Canvas exported CSV file
-$ lab-tools new-spreadsheet --input /path/to/canvas.csv
-
-# generate new grading spreadsheet from a Canvas exported CSV file, specifying output file
-$ lab-tools new-spreadsheet --input /path/to/canvas.csv --output /path/to/output/file
-$ lab-tools new-spreadsheet -i /path/to/canvas.csv -o /path/to/output/file
-
-# merge grading spreadsheet with a Canvas CSV file, creating a new CSV file for upload and a grading spreadsheet corresponding to the latest roster on Canvas
-$ lab-tools merge --published /path/to/canvas.csv --latest /path/to/TA/grading/spreadsheet
-
-# merge grading spreadsheet with a Canvas CSV file, specifying output files
-$ lab-tools merge --published /path/to/canvas.csv --latest /path/to/TA/grading/spreadsheet --csv-out /path/to/updated.csv --xlsx-out /path/to/updated.xlsx
 ```
 
 # Building from source
@@ -133,7 +105,7 @@ Compiling from source requires the following build tools:
 |Tool|Version requirement|
 |----|-----|
 |Rust| >= 1.64.0|
-|OCaml| >= 4.08.0, < 5.0.0|
+|OCaml| =4.14.0|
 | OPAM| >= 2.0|
 |GCC or Clang|Any recent version|
 
