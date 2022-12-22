@@ -1,19 +1,13 @@
 - [x] remove all exn calls
 - [x] most Options should really be Results
 - [x] configuration file
-- [x] group Excel sheets by TA name instead of section
-- [x] add section column into Excel sheet
-- [x] add student ID to Excel sheet and merge on that
-- [x] be more specific about errors in `of_xlsx_sheets`
 - [x] PDF output by TA
 - [x] output file/directory CLI option
 - [x] auto-rename on conflict
 - [x] List.hd/tl to explicit pattern match to prevent exceptions
 - [x] setup default config on first run
-- [ ] array formula for STDEV.P
 - [x] plain help text
 - [ ] Excel column widths
-- [ ] empty rows between TAs on grading spreadsheet summary page
 - [ ] PDF output with bold outlines around groups
 - [x] handle when macOS is seeing TOML files for the first time and doesn't know
   how to deal with it
