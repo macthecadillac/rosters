@@ -95,7 +95,7 @@ jobs:
       - name: Build
         run: |
           mkdir .cargo
-          cat "[build]\ntarget = x\"86_64-pc-windows-gnu\"" > .cargo/config
+          cat "[build]\ntarget = \"x86_64-pc-windows-gnu\"" > .cargo/config
           opam install . --deps-only
           opam exec -- dune build
       - name: Rename, strip and sign
