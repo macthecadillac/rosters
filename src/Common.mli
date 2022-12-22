@@ -22,7 +22,6 @@ module Section : sig
   val to_int : t -> Int.t
   val of_int : Int.t -> t
   val of_string : String.t -> t Option.t
-  val to_string : t -> String.t Option.t
   val pp : t printer
 end
 

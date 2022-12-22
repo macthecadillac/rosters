@@ -9,12 +9,15 @@ let default_config =
 "# This is an example configuration to help you get started. This file is
 # already written to the correct location, so once you are done editing it,
 # simply save and close your text editor. You can always access this file by
-# running `rosters configure.
-#
+# running `rosters configure`. To remove the configuration, simply run
+# `rosters reset`.
+
+# Configuration is entirely optional. `rosters` will run
+# with default values if a given configuration key is not found.
+
 # This file is written in the TOML format. Lines prefixed with the \"#\" sign
 # are comments and will be ignored.
-#
-# This section is mandatory--`rosters` won't run without it.
+
 [ta-assignment]
 # LHS is the name of the TA. There cannot be spaces within a name.
 # RHS is the list of sections that the TA is assigned to. It must be a list of
@@ -31,9 +34,6 @@ Jerry = [6, 8, 16, 26]
 Ricky = [4, 14, 24, 34]
 Lyndon = [37, 39]
 
-# This section is optional. `rosters` will run with default values if this is
-# missing. This section is only used for roster generation. The values below are
-# for 1AL.
 [checkpoints]
 # LHS must be in the form of \"lab\" followed by an integer.
 # RHS is a list of strings. Entries must be enclosed in single or double quotes
@@ -49,11 +49,6 @@ lab8 = ['A6', 'A12', 'B2', 'B7']
 lab9 = ['A3', 'B2', 'B9', 'C4']
 "
 
-let config_not_found_msg =
-  "Configuration not found. `rosters` cannot run without first being " ^
-  "configured. Edit the configuraton file by running `rosters configure` " ^
-  "then try again."
-
 let read_config config =
   let open Result.Infix in
   let from_array f = function
@@ -62,11 +57,13 @@ let read_config config =
   let maybe_assoc f s = Option.map (Pair.make s) % from_array f in
   let* ta_assignment =
     let f = function Otoml.TomlInteger i -> Some (Section.of_int i) | _ -> None in
-    Otoml.find_result config Otoml.get_table ["ta-assignment"]
-      >>= List.map (uncurry (maybe_assoc f))
-      %> Option.sequence_l
-      %> Option.to_result "cannot read the \"ta-assignment\" section"
-      >|= StringMap.of_list in
+    match Otoml.find_result config Otoml.get_table ["ta-assignment"] with
+    | Error _ -> Result.pure None
+    | Ok table ->
+        List.map (uncurry (maybe_assoc f)) table
+        |> Option.sequence_l
+        |> Option.to_result "cannot read the \"ta-assignment\" section"
+        >|= StringMap.of_list %> Option.some in
   let+ checkpoints =
     let f = function Otoml.TomlString s -> Some s | _ -> None in
     let to_int s = Str.replace_first (Str.regexp {|lab\([0-9]+\)|}) {|\1|} s
@@ -110,12 +107,10 @@ let default_config_dir () =
     | _ -> None
 
 let config_path () =
-  let open Result.Infix in
-  let msg = "No configuration directory found. Abort." in
-  let* config_dir = default_config_dir () |> Option.to_result msg in
+  let open Option.Infix in
+  let* config_dir = default_config_dir () in
   (* use .txt because systems might not know how to open .toml *)
-  Bos.OS.File.must_exist Fpath.(config_dir / "rosters.txt")
-    |> Result.map_err (const config_not_found_msg)
+  Bos.OS.File.must_exist Fpath.(config_dir / "rosters.txt") |> Option.of_result
 
 let write_default_config () =
   let open Result.Infix in
@@ -125,19 +120,18 @@ let write_default_config () =
     |> to_string_err
 
 let load_config () =
-  let open Result.Infix in
-  config_path ()
-    >>= Bos.OS.File.read
-    %> Result.map_err (const config_not_found_msg)
-    >>= Otoml.Parser.from_string_result
-    >>= read_config
-    |> Result.add_ctx " unreadable configuration file"
+  let open Option.Infix in
+  let+ cpath = config_path () in
+    let open Result.Infix in
+    Otoml.Parser.from_file_result (Fpath.to_string cpath)
+    >>= read_config |> Result.add_ctx " error while loading configuration"
 
 let open_config_in_editor () =
   let open Result.Infix in
-  let* () = if Result.is_error (config_path ())
+  let* () = if Option.is_none (config_path ())
             then write_default_config () else Ok () in
-  let* path = config_path () in
+  (* shouldn't fail *)
+  let* path = config_path () |> Result.of_opt in
   let* cmd = match Sys.os_type with
     | "Unix" -> Ok (Bos.Cmd.(v "open" % Fpath.to_string path))
     | "Win32" -> Ok (Bos.Cmd.v @@ Fpath.to_string path)
@@ -147,9 +141,15 @@ let open_config_in_editor () =
   "text editor such as Sublime, Notepad++ or TextEdit. On your system, the " ^
   "configuration " ^ Format.sprintf "file is located at %a" Fpath.pp path
 
+let remove_config () =
+  match config_path () with
+  | None -> Ok ()
+  | Some cpath -> Bos.OS.File.delete cpath |> const (Ok ())
+
 let generate_rosters lab data_path output_dir =
   let open Result.Infix in
-  let* ta_assignment, checkpoints_opt = load_config () in
+  let* ta_assignment_opt, checkpoints_opt =
+    Option.get_or ~default:(Ok (None, None)) @@ load_config () in
   let* prefix = match output_dir with
     | Some s -> Fpath.of_string s >>= Bos.OS.Dir.must_exist |> to_string_err
     | None -> Bos.OS.Dir.current () |> to_string_err in
@@ -158,16 +158,19 @@ let generate_rosters lab data_path output_dir =
     Fpath.(prefix / (Format.sprintf "Lab %i Summary Attendance Sheet.xlsx" lab))
     |> rename_if_exists |> to_string_err
     >>= Fun.flip Xlsx.write xlsx in
-  let write_pdf checkpoints rosters =
-    let rosters_m = SectionMap.of_list @@ List.map (fun x -> Roster.section x, x) rosters in
+  let write_pdf checkpoints section_groups rosters =
     let pdfs =
       let pdf_page = Pdf.of_roster lab checkpoints in
       let pdf_of_rosters = Pdf.to_bytes % List.map pdf_page in
-      let ta_section_l = StringMap.to_seq ta_assignment in
       let all = Pdf.to_bytes @@ List.map (Pdf.of_roster lab checkpoints) rosters in
-      let f = List.filter_map (flip SectionMap.get rosters_m) in
-      Seq.cons ("All", all) @@ Seq.map (Pair.map_snd @@ pdf_of_rosters % f) ta_section_l in
-    let fname s = Format.sprintf "Lab %i Blank Rosters (%s Sections).pdf" lab s in
+      let m = SectionMap.of_list @@ List.map (fun x -> Roster.section x, x) rosters in
+      let f = List.filter_map (flip SectionMap.get m) in
+      Seq.cons (`N "All", all)
+      @@ Seq.map (Pair.map_snd @@ pdf_of_rosters % f)
+      @@ Seq.of_list section_groups in
+    let fname = function
+      | `N s -> Format.sprintf "Lab %i Blank Rosters (%s Sections).pdf" lab s
+      | `S s -> Format.sprintf "Lab %i Blank Rosters (Section %a).pdf" lab Section.pp s in
     (* something of a foldM with EitherT String IO () *)
     let iter_f acc (n, s) = acc >>= fun () ->
       Fpath.(prefix / fname n) |> flip Bos.OS.File.write s |> to_string_err in
@@ -179,8 +182,11 @@ let generate_rosters lab data_path output_dir =
     Fpath.of_string data_path |> to_string_err
     >>= Bos.OS.File.read %> to_string_err
     >|= Roster.of_csv_string in
+  let section_groups =
+    Option.get_or ~default:(List.map Roster.(fun x -> `S (section x), [section x]) rosters)
+    @@ Option.map (StringMap.to_list %> List.map (fun (x, y) -> `N x, y)) ta_assignment_opt in
   let* () = write_xlsx checkpoints rosters in
-  write_pdf checkpoints rosters
+  write_pdf checkpoints section_groups rosters
 
 let () =
   let open Cmdliner in
@@ -198,7 +204,10 @@ let () =
   let configure =
     let doc = "open configuration file in text editor" in
     Cmd.v (Cmd.info ~doc "configure") Term.(const open_config_in_editor $ const ()) in
+  let reset =
+    let doc = "remove configuration" in
+    Cmd.v (Cmd.info ~doc "reset") Term.(const remove_config $ const ()) in
   let main =
     let doc = "rosters" in
-    Cmd.(group (info ~doc "rosters") [generate; configure]) in
+    Cmd.(group (info ~doc "rosters") [generate; configure; reset]) in
   exit @@ Cmd.eval_result main

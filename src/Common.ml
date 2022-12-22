@@ -35,13 +35,13 @@ end
 module Section = struct
   open Fun
 
-  type t = { num : Int.t; str : String.t Option.t }
+  type t = Int.t
 
-  let compare t1 t2 = Int.compare t1.num t2.num
+  let compare = Int.compare
 
-  let to_int { num; _ } = num
+  let to_int t = t
 
-  let of_int num = { num; str = None }
+  let of_int n = n
 
   let of_string str =
     let open Option in
@@ -49,9 +49,6 @@ module Section = struct
       |> List.rev
       |> flip List.nth_opt 1
       >>= Int.of_string
-      >>= fun num -> pure { num; str = Some str }
-
-  let to_string { str; _ } = str
 
   let pp fmt t = Format.fprintf fmt "%i" @@ to_int t
 end

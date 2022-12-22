@@ -9,9 +9,9 @@
 - [x] plain help text
 - [ ] Excel column widths
 - [ ] PDF output with bold outlines around groups
+- [x] Optional configuration
 - [x] handle when macOS is seeing TOML files for the first time and doesn't know
   how to deal with it
-- [ ] automated tests
 - [x] Github workflows auto compile for Linux and macOS (Intel)
 - [ ] Github workflows auto compile for Windows
 - [x] code signing for macOS
