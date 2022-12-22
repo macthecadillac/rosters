@@ -9,7 +9,7 @@ let default_config =
 "# This is an example configuration to help you get started. This file is
 # already written to the correct location, so once you are done editing it,
 # simply save and close your text editor. You can always access this file by
-# running `rosters open-config`.
+# running `rosters configure.
 #
 # This file is written in the TOML format. Lines prefixed with the \"#\" sign
 # are comments and will be ignored.
@@ -51,7 +51,7 @@ lab9 = ['A3', 'B2', 'B9', 'C4']
 
 let config_not_found_msg =
   "Configuration not found. `rosters` cannot run without first being " ^
-  "configured. Edit the configuraton file by running `rosters open-config` " ^
+  "configured. Edit the configuraton file by running `rosters configure` " ^
   "then try again."
 
 let read_config config =
@@ -131,7 +131,7 @@ let load_config () =
     %> Result.map_err (const config_not_found_msg)
     >>= Otoml.Parser.from_string_result
     >>= read_config
-    |> Result.add_ctx " malformed configuration file"
+    |> Result.add_ctx " unreadable configuration file"
 
 let open_config_in_editor () =
   let open Result.Infix in
@@ -186,7 +186,7 @@ let () =
   let open Cmdliner in
   let parse f pp = (fun s -> `Ok (f s)), Option.pp pp in
   let parse_string = parse Option.pure String.pp in
-  let rosters =
+  let generate =
     let doc = "generate rosters" in
     let lab = Arg.required @@ Arg.opt (parse Int.of_string Int.pp) None
       @@ Arg.info ~doc:"lab number" ["lab"] in
@@ -194,11 +194,11 @@ let () =
       @@ Arg.info ~doc:"path to canvas exported csv file" ["input"; "i"] in
     let output = Arg.value @@ Arg.opt parse_string None
       @@ Arg.info ~doc:"output directory" ["output"; "o"] in
-    Cmd.v (Cmd.info ~doc "rosters") Term.(const generate_rosters $ lab $ input $ output) in
-  let open_config =
+    Cmd.v (Cmd.info ~doc "generate") Term.(const generate_rosters $ lab $ input $ output) in
+  let configure =
     let doc = "open configuration file in text editor" in
-    Cmd.v (Cmd.info ~doc "open-config") Term.(const open_config_in_editor $ const ()) in
+    Cmd.v (Cmd.info ~doc "configure") Term.(const open_config_in_editor $ const ()) in
   let main =
     let doc = "rosters" in
-    Cmd.(group (info ~doc "rosters") [rosters; open_config]) in
+    Cmd.(group (info ~doc "rosters") [generate; configure]) in
   exit @@ Cmd.eval_result main

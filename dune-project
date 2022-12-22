@@ -1,15 +1,15 @@
 (lang dune 3.5)
-(name lab-tools)
+(name rosters)
 (version 0.91)
 
 (generate_opam_files true)
 (maintainers "Mac Lee")
-(homepage "https://github.com/macthecadillac/lab-tools")
+(homepage "https://github.com/macthecadillac/rosters")
 
 (package
- (name lab-tools)
- (synopsis "Utility for 1-series lab management")
- (description "Utility for 1-series lab management")
+ (name rosters)
+ (synopsis "Roster generator for 1-series labs")
+ (description "Roster generator for 1-series labs")
  (authors "Mac Lee")
  (depends
   (ocaml (= "4.14.0"))

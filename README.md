@@ -1,25 +1,25 @@
 # Setup
 
-`lab-tools` has no external dependency aside from a functioning OS. Simply
+`rosters` has no external dependency aside from a functioning OS. Simply
 download the appropriate executable for your platform from the [release
-page](https://github.com/macthecadillac/lab-tools/releases) and run in the
+page](https://github.com/macthecadillac/rosters/releases) and run in the
 terminal.
 
 # Usage
 
 This program has a "multitool" interface, where the main command is followed by a
 subcommand, which takes its own arguments. The general syntax of the tool is
-`lab-tools <subcommand> <arguments> [options]`. The subcommands will be described
+`rosters <subcommand> <arguments> [options]`. The subcommands will be described
 in the following subsections.
 
-Run `lab-tools --help`, `lab-tools rosters --help`, `lab-tools merge --help` etc.
-to see the correct syntax and a full list of available options.
+Run `rosters --help` and `rosters generate --help` to see the correct syntax and
+a full list of available options.
 
-## rosters
+## generate
     
 This subcommand generates random rosters for every section in the lab. Go to
 Canvas course > Grades > Actions > Export Entire Gradebook. Save the CSV file
-somewhere in your system. Run `lab-tools rosters --lab 1 --input
+somewhere in your system. Run `rosters generate --lab 1 --input
 /path/to/data.csv`, replacing '1' with the lab number of the week and the last
 part with the actual path to the CSV file. If your path contains spaces, you
 will need to either escape the spaces or put the entire path in between quotes.
@@ -27,17 +27,17 @@ This will generate randomized rosters for every section in the current working
 directory along with an xlsx file mirroring the pdfs for data entry purposes.
 You can specify checkpoints for the lab through the configuration file.
 
-## open-config
+## configure
 
-`lab-tools open-config` opens the configuration file in the default text editor.
+`rosters configure` opens the configuration file in the default text editor.
 
 # Configuration
 
 On Windows, the configuration file is located at
-`%LOCALAPPDATA%\lab-tools.toml`. On Unix (such as macOS)/Unix-like (such as
+`%LOCALAPPDATA%\rosters.toml`. On Unix (such as macOS)/Unix-like (such as
 Linux) systems with the environmental variable `$XDG_CONFIG_HOME` set, the
-configuration file is located at `$XDG_CONFIG_HOME/lab-tools.toml`, otherwise it
-is located at `$HOME/.config/lab-tools.toml`, where `$HOME` is your home folder.
+configuration file is located at `$XDG_CONFIG_HOME/rosters.toml`, otherwise it
+is located at `$HOME/.config/rosters.toml`, where `$HOME` is your home folder.
 
 The configuration is done via the TOML language. Here is a sample configuration
 with all the recognized keys:
@@ -46,12 +46,12 @@ with all the recognized keys:
 # This is an example configuration to help you get started. This file is
 # already written to the correct location, so once you are done editing it,
 # simply save and close your text editor. You can always access this file by
-# running `lab-tools open-config`.
+# running `rosters open-config`.
 #
 # This file is written in the TOML format. Lines prefixed with the \"#\" sign
 # are comments and will be ignored.
 #
-# This section is mandatory--`lab-tools` won't run without it.
+# This section is mandatory--`rosters` won't run without it.
 [ta-assignment]
 # LHS is the name of the TA. There cannot be spaces within a name.
 # RHS is the list of sections that the TA is assigned to. It must be a list of
@@ -68,7 +68,7 @@ Jerry = [6, 8, 16, 26]
 Ricky = [4, 14, 24, 34]
 Lyndon = [37, 39]
 
-# This section is optional. `lab-tools` will run with default values if this is
+# This section is optional. `rosters` will run with default values if this is
 # missing. This section is only used for roster generation. The values below are
 # for 1AL.
 [checkpoints]
@@ -90,13 +90,13 @@ lab9 = ['A3', 'B2', 'B9', 'C4']
 
 ```sh
 # open configuration
-$ lab-tools open-config
+$ rosters configure
 
 # generate rosters from a Canvas exported CSV file
-$ lab-tools rosters --lab 1 --input /path/to/canvas.csv
+$ rosters generate --lab 1 --input /path/to/canvas.csv
 
 # generate rosters from a Canvas exported CSV file, specifying output file
-$ lab-tools rosters --lab 2 -i /path/to/canvas.csv -o /path/to/output/directory
+$ rosters generate --lab 2 -i /path/to/canvas.csv -o /path/to/output/directory
 ```
 
 # Building from source

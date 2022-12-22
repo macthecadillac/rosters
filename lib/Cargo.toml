@@ -1,5 +1,5 @@
 [package]
-name = "lab-tools"
+name = "rosters"
 version = "0.1.0"
 authors = ["Mac Lee <mal004@ucsd.edu>"]
 edition = "2021"
