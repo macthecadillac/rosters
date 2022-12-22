@@ -122,7 +122,7 @@ let auto_box_height =
   R.(Length.((+) (of_pt (2. *. 2.5))) <$> text_height)
 
 (* anchors at upper left corner *)
-let text_box text placement width (H box_height) border_width =
+let text_box ?text:(text="") placement width (H box_height) border_width =
   let open SR in
   let black = Vg.I.const Gg.Color.black in
   let* ax, ay = get in
@@ -185,18 +185,18 @@ let write_column_header checkpoints img =
                             @ [pure mid_width]
                             @ List.map width right_headings in
   let row_height = H box_height in
-  let f (m, s) img =
-    let* w = width (m, s) in
-    let* tb = text_box s C m row_height (Some bw1) in
+  let f (m, text) img =
+    let* w = width (m, text) in
+    let* tb = text_box ~text C m row_height (Some bw1) in
     Vg.I.blend tb img <$ puts Length.(map_fst ((+) w)) in
   let center_box img =
     let width = M mid_width in
-    let* tb = text_box "Student" C width row_height (Some bw1) in
+    let* tb = text_box ~text:"Student" C width row_height (Some bw1) in
     Vg.I.blend tb img <$ puts Length.(map_fst ((+) mid_width)) in
   let* img =
     let* img =
       let width = M Length.(l - 2. *.. margin) in
-      flip Vg.I.blend img <$> text_box "" C width row_height (Some bw2) in
+      flip Vg.I.blend img <$> text_box C width row_height (Some bw2) in
     let g acc x = acc >>= f x in
     List.fold_left g (pure img) left_headings >>= center_box
       |> flip (List.fold_left g) right_headings in
@@ -207,20 +207,20 @@ let write_group n names widths img =
   let write_row nlines name img =
     let* x, y = get in
     let nchkpts = List.length widths - 4 in
-    (* TODO: make string input optional *)
-    let row = [Some (1, None, C, "");
-               Some (1, None, C, "");
-               Option.map (fun x -> x, Some Bold, C, string_of_int n) nlines;
-               Some (1, None, L, name)]
+    let row =
+      flip List.combine widths @@
+      [Some (1, None, C, "");
+       Some (1, None, C, "");
+       Option.map (fun x -> x, Some Bold, C, string_of_int n) nlines;
+       Some (1, None, L, name)]
       @ List.replicate nchkpts (Some (1, None, C, "")) in
-    let row = List.combine row @@ widths in
     let* box_height = lift_reader auto_box_height in
     let f (x, w) img = match x with
       | None -> img <$ puts Length.(map_fst ((+) w))
-      | Some (vlines, font, p, s) ->
+      | Some (vlines, font, p, text) ->
           let bh = H Length.(box_height * of_int vlines) in
           let* tb =
-            let gen = text_box s p (M w) bh (Some bw1) in
+            let gen = text_box ~text p (M w) bh (Some bw1) in
             match font with
             | None -> gen
             | Some ft -> local (map_fst @@ const ft) gen in
@@ -242,8 +242,8 @@ let write_page_header lab section img =
                Length.of_in 1.7, L, "Date:"] in
   let* row_height = lift_reader auto_box_height in
   let* x, y = get in
-  let f (w, p, s) img =
-    let* tb = text_box s p (M w) (H row_height) None in
+  let f (w, p, text) img =
+    let* tb = text_box ~text p (M w) (H row_height) None in
     Vg.I.blend tb img <$ puts Length.(map_fst ((+) w)) in
   let g acc x = acc >>= f x in
   List.fold_left g (pure img) cells <* put Length.(x, y + row_height)
@@ -266,7 +266,7 @@ let of_roster lab checkpoints roster =
   let (_, y), img = write_section lab section checkpoints font_size white roster in
   let width = M Length.(l - 2. *.. margin) in
   let height = H Length.(y - margin) in
-  let borders_r = text_box "" C width height (Some bw2) in
+  let borders_r = text_box C width height (Some bw2) in
   flip Vg.I.blend img @@ R.run (SR.eval borders_r origin) (Bold, font_size)
 
 exception ImpossibleBranch

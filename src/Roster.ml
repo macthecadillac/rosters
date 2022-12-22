@@ -48,14 +48,13 @@ let of_csv_string =
   %> List.rev
 
 let to_xlsx lab checkpoints rosters =
-  let open List in
+  let open List.Infix in
   let open Xlsx in
   let summary_page lab sections =
     let header =
       text_cell <$> [Format.sprintf "Lab %i" lab; "Check if complete"] in
     let entries =
-      let+ s = sections in
-      Section.to_int s |> Format.sprintf "section %i" |> text_cell |> pure in
+      List.pure % text_cell % Format.sprintf "section %i" % Section.to_int <$> sections in
     let data = header :: entries in
     let name = "summary" in
     Xlsx.new_sheet name data in
@@ -64,14 +63,12 @@ let to_xlsx lab checkpoints rosters =
        "Under the \"Signature\" column, leave blank if present, enter " ^
        "\"Absent\" if absent, describe circumstances if student left soon after quiz";
        "Under the \"Late\" column, enter the amount of time if they are late" ] in
-    let instrs =
-      let+ s = instructions in
-      text_cell s |> set_color Red |> set_type Bold |> pure in
+    let instrs = List.pure % set_type Bold % set_color Red % text_cell <$> instructions in
     let header =
-      let+ h = ["Signature"; "Late"; "Group"; "Student"] @ checkpoints @ ["TA Check"] in
-      text_cell h |> set_type Bold in
+      set_type Bold % text_cell
+      <$> ["Signature"; "Late"; "Group"; "Student"] @ checkpoints @ ["TA Check"] in
     let rows =
-      let* (group, names) = IntMap.to_list groups |> List.rev in
+      let* group, names = IntMap.to_list groups |> List.rev in
       let+ name = names in
       let g = Format.sprintf "%i" group in
       [empty_cell; empty_cell; text_cell g; text_cell @@ Name.canonical name] in
