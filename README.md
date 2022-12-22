@@ -31,6 +31,10 @@ You can specify checkpoints for the lab through the configuration file.
 
 `rosters configure` opens the configuration file in the default text editor.
 
+## reset
+
+`rosters reset` removes the configuration file (if any).
+
 # Configuration
 
 On Windows, the configuration file is located at
@@ -46,12 +50,15 @@ with all the recognized keys:
 # This is an example configuration to help you get started. This file is
 # already written to the correct location, so once you are done editing it,
 # simply save and close your text editor. You can always access this file by
-# running `rosters open-config`.
-#
-# This file is written in the TOML format. Lines prefixed with the \"#\" sign
+# running `rosters configure`. To remove the configuration, simply run
+# `rosters reset`.
+
+# Configuration is entirely optional. `rosters` will run
+# with default values if a given configuration key is not found.
+
+# This file is written in the TOML format. Lines prefixed with the "#" sign
 # are comments and will be ignored.
-#
-# This section is mandatory--`rosters` won't run without it.
+
 [ta-assignment]
 # LHS is the name of the TA. There cannot be spaces within a name.
 # RHS is the list of sections that the TA is assigned to. It must be a list of
@@ -68,11 +75,8 @@ Jerry = [6, 8, 16, 26]
 Ricky = [4, 14, 24, 34]
 Lyndon = [37, 39]
 
-# This section is optional. `rosters` will run with default values if this is
-# missing. This section is only used for roster generation. The values below are
-# for 1AL.
 [checkpoints]
-# LHS must be in the form of "lab" followed by an integer.
+# LHS must be in the form of \"lab\" followed by an integer.
 # RHS is a list of strings. Entries must be enclosed in single or double quotes
 # separted by commas.
 lab1 = ['A', 'B5', 'C1', 'C2']
@@ -84,6 +88,7 @@ lab6 = ['A', 'B5', 'C']
 lab7 = ['A3', 'B6', 'B13', 'C10']
 lab8 = ['A6', 'A12', 'B2', 'B7']
 lab9 = ['A3', 'B2', 'B9', 'C4']
+"
 ```
 
 # Examples
