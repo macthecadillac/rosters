@@ -86,6 +86,8 @@ jobs:
         uses: ocaml/setup-ocaml@v2
         with:
             ocaml-compiler: 4.14.0
+      - name: Setup MSYS2/MinGW
+        uses: msys2/setup-msys2@v2
       - name: Import GPG key
         id: import_gpg
         uses: crazy-max/ghaction-import-gpg@v5
