@@ -108,13 +108,13 @@ jobs:
           # export PATH="/d/a/rosters/rosters/bin:$PATH"
           # export PATH="/c/Users/runneradmin/.cargo/bin:$PATH"
           # export PATH="/c/msys64:$PATH"
-          # ls "/c/msys64"
+          ls "/c/msys64/mingw64"
           mkdir .cargo
           echo "[build]" > .cargo/config
           echo "target = 'x86_64-pc-windows-gnu'" >> .cargo/config
           # which x86_64-w64-mingw32-gcc.exe
           # which x86_64-w64-mingw32-gcc-ar
-          C:/msys64/mingw64 -c "cargo build --release --manifest-path lib/Cargo.toml"
+          # C:/msys64/mingw64 -c "cargo build --release --manifest-path lib/Cargo.toml"
           # D:/cygwin/wrapperbin/opam.cmd install . --deps-only
           # D:/cygwin/wrapperbin/opam.cmd exec -- dune build
       # - name: Rename, strip and sign
