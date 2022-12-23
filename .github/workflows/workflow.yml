@@ -95,6 +95,7 @@ jobs:
           gpg_private_key: ${{ secrets.GPG_PRIVATE_KEY }}
           passphrase: ${{ secrets.GPG_KEY_PASSPHRASE }}
       - name: Build
+        shell: msys2 {0}
         run: |
           mkdir .cargo
           echo "[build]" > .cargo/config
