@@ -136,14 +136,16 @@ jobs:
           mkdir lib/.cargo
           echo "[build]" > lib/.cargo/config
           echo "target = 'x86_64-pc-windows-gnu'" >> lib/.cargo/config
-          D:\\cygwin\\wrapperbin\\opam install . --deps-only
+          Get-ChildItem D:\\cygwin\\wrapperbin
+          Get-ChildItem D:\\cygwin\\bin
+          # D:\\cygwin\\wrapperbin\\opam install . --deps-only
           # D:\\cygwin\\wrapperbin\\opam exec -- dune build
       # - name: Rename, strip and sign
       #   run: |
       #     mv _build/default/src/Main.exe rosters.exe
       #     strip rosters.exe
       #     gpg --output rosters.exe.sig --detach-sig --armor rosters.exe
-      #     zip rosters-windows-x86_64.zip rosters.exe rosters.exe.sig README.md LICENSE
+      #     Compress-Archive rosters-windows-x86_64.zip rosters.exe rosters.exe.sig README.md LICENSE
       # - name: Upload artifacts
       #   uses: actions/upload-artifact@v3
       #   with:
