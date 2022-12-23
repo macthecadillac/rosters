@@ -100,8 +100,8 @@ jobs:
             base-devel
             mingw-w64-x86_64-rust
       - name: Build
-        # shell: msys2 {0}
-        shell: bash
+        shell: msys2 {0}
+        # shell: bash
         run: |
           # ls /d/cygwin/wrapperbin/
           # cat /d/cygwin/wrapperbin/opam.cmd
