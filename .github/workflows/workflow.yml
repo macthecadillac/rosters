@@ -111,7 +111,7 @@ jobs:
           echo "[build]" > .cargo/config
           echo "target = 'x86_64-pc-windows-gnu'" >> .cargo/config
           # which x86_64-w64-mingw32-gcc.exe
-          cargo build --release --manifest-path lib/Cargo.toml
+          powershell -c "cargo build --release --manifest-path lib/Cargo.toml"
           # D:/cygwin/wrapperbin/opam.cmd install . --deps-only
           # D:/cygwin/wrapperbin/opam.cmd exec -- dune build
       # - name: Rename, strip and sign
