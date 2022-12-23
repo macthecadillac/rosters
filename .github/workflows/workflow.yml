@@ -25,13 +25,21 @@ jobs:
         run: |
           opam install . --deps-only
           opam exec -- dune build
+      - name: Generate README.html
+        uses: docker://pandoc/core:2.9
+        with:
+          args: >-
+            --standalone
+            --output=README.html
+            README.md
       - name: Rename, strip and sign
         run: |
           mv _build/default/src/Main.exe lab-tools
           chmod 755 lab-tools
           strip lab-tools
           gpg --output lab-tools.sig --detach-sig --armor lab-tools
-          tar -czvf lab-tools-linux-x86_64.tar.gz lab-tools lab-tools.sig README.md LICENSE
+      - name: Package
+        run: tar -czvf lab-tools-linux-x86_64.tar.gz lab-tools lab-tools.sig README.html LICENSE
       - name: Upload artifacts
         uses: actions/upload-artifact@v3
         with:
@@ -51,6 +59,13 @@ jobs:
         run: |
           opam install . --deps-only
           opam exec -- dune build
+      - name: Generate README.html
+        uses: docker://pandoc/core:2.9
+        with:
+          args: >-
+            --standalone
+            --output=README.html
+            README.md
       - name: Rename and strip
         run: |
           mv _build/default/src/Main.exe lab-tools
@@ -70,7 +85,8 @@ jobs:
           security import certificate.p12 -k build.keychain -P $CA_PWD -T /usr/bin/codesign
           security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k $KEYCHAIN_PWD build.keychain
           /usr/bin/codesign --force -s 1835F1EA8D9878A4BA1AAB3E56AA641780D44656 lab-tools -v
-          zip lab-tools-macos-x86_64.zip lab-tools README.md LICENSE
+      - name: Package
+        run: zip lab-tools-macos-x86_64.zip lab-tools README.html LICENSE
       - name: Upload artifacts
         uses: actions/upload-artifact@v3
         with:
