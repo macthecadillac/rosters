@@ -103,10 +103,10 @@ jobs:
       - name: Build
         shell: msys2 {0}
         run: |
-          # export PATH="/d/cygwin/bin:$PATH"
-          # opam install . --deps-only
-          # opam exec -- dune build
-          cargo build --manifest-path lib/Cargo.toml
+          export PATH="/d/cygwin/bin:$PATH"
+          opam install . --deps-only
+          opam exec -- dune build
+          # cargo build --manifest-path lib/Cargo.toml
       # - name: Rename, strip and sign
       #   shell: msys2 {0}
       #   run: |
