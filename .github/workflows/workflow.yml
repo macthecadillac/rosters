@@ -123,7 +123,7 @@ jobs:
           # C:/msys64/msys2_shell.cmd
           # D:/cygwin/wrapperbin/opam.cmd install . --deps-only
           # D:/cygwin/wrapperbin/opam.cmd exec -- dune build
-          cargo build --manifest-path lib/Cargo.toml
+          /c/Users/runneradmin/.cargo/bin/cargo.exe build --manifest-path lib/Cargo.toml
       # - name: Rename, strip and sign
       #   shell: powershell
       #   run: |
