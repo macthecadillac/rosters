@@ -99,8 +99,8 @@ jobs:
           install: >-
             git
             base-devel
-            gcc
-            zlib
+            mingw-w64-x86_64-gcc
+            mingw-w64-x86_64-zlib
       - name: Build
         # shell: bash
         shell: msys2 {0}
