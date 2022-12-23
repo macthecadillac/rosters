@@ -102,8 +102,8 @@ jobs:
       - name: Build
         shell: msys2 {0}
         run: |
-          # export PATH="/d/cygwin/bin:$PATH"
-          export PATH="$PATH:/d/cygwin/bin"
+          export PATH="/d/cygwin/bin:$PATH"
+          # export PATH="$PATH:/d/cygwin/bin"
           opam install . --deps-only
           opam exec -- dune build
       # - name: Rename, strip and sign
