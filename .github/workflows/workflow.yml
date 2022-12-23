@@ -92,33 +92,27 @@ jobs:
         uses: ocaml/setup-ocaml@v2
         with:
             ocaml-compiler: 4.14.0
-      - name: Setup MSYS2/MinGW
-        uses: msys2/setup-msys2@v2
-        with:
-          install: >-
-            git
-            base-devel
-            mingw-w64-x86_64-rust
+      # - name: Setup MSYS2/MinGW
+      #   uses: msys2/setup-msys2@v2
+      #   with:
+      #     install: >-
+      #       git
+      #       base-devel
+      #       mingw-w64-x86_64-rust
       - name: Build
-        shell: msys2 {0}
+        # shell: msys2 {0}
+        shell: bash
         run: |
-          # mkdir .cargo
-          # echo "[build]" > .cargo/config
-          # echo "target = 'x86_64-pc-windows-gnu'" >> .cargo/config
-          D:/cygwin/wrapperbin/opam.cmd install . --deps-only
-          D:/cygwin/wrapperbin/opam.cmd exec -- dune build
+          ls /d/cygwin/wrapperbin/
+          # D:/cygwin/wrapperbin/opam.cmd install . --deps-only
+          # D:/cygwin/wrapperbin/opam.cmd exec -- dune build
       # - name: Rename, strip and sign
-      #   shell: powershell
+      #   shell: msys2 {0}
       #   run: |
-      #     Move-Item -Path _build/default/src/Main.exe -Destination rosters.exe
+      #     mv _build/default/src/Main.exe rosters.exe
       #     strip rosters.exe
       #     gpg --output rosters.exe.sig --detach-sig --armor rosters.exe
-      #     $compress = @{
-      #       Path = "rosters.exe", "rosters.exe.sig", "README.md", "LICENSE"
-      #       CompressionLevel = "Optimal"
-      #       DestinationPath = "rosters-windows-x86_64.zip"
-      #     }
-      #     Compress-Archive @compress
+      #     zip rosters-windows-x86_64.zip rosters.exe rosters.exe.sig README.md LICENSE
       # - name: Upload artifacts
       #   uses: actions/upload-artifact@v3
       #   with:
