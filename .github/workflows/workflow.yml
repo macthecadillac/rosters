@@ -136,8 +136,8 @@ jobs:
           mkdir .cargo
           echo "[build]" > .cargo/config
           echo "target = 'x86_64-pc-windows-gnu'" >> .cargo/config
-          D:\cygwin\bin\opam.exe install . --deps-only
-          D:\cygwin\bin\opam.exe exec -- dune build
+          D:\\cygwin\\bin\\opam.exe install . --deps-only
+          D:\\cygwin\\bin\\opam.exe exec -- dune build
       - name: Rename, strip and sign
         run: |
           mv _build/default/src/Main.exe rosters.exe
