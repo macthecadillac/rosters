@@ -92,17 +92,17 @@ jobs:
       #   uses: ocaml/setup-ocaml@v2
       #   with:
       #       ocaml-compiler: 4.14.0
-      # - name: Setup MSYS2/MinGW
-      #   uses: msys2/setup-msys2@v2
-      #   with:
-      #     update: false
-      #     install: >-
-      #       git
-      #       base-devel
-      #       mingw-w64-x86_64-gcc
+      - name: Setup MSYS2/MinGW
+        uses: msys2/setup-msys2@v2
+        with:
+          update: false
+          install: >-
+            git
+            base-devel
+            mingw-w64-x86_64-gcc
       - name: Build
         # shell: bash
-        shell: C:/msys64/msys2_shell {0}
+        shell: msys2 {0}
         run: |
           # mkdir bin
           # ln -s "/c/Users/runneradmin/.cargo/bin/cargo.exe" bin/cargo
