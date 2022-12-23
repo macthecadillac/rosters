@@ -98,7 +98,7 @@ jobs:
           install: >-
             git
             base-devel
-            mingw-w64-x86_64-rust
+            mingw-w64-clang-x86_64-rust
       - name: Build
         shell: msys2 {0}
         run: |
