@@ -96,10 +96,8 @@ jobs:
         uses: msys2/setup-msys2@v2
         with:
           install: >-
-            git
-            base-devel
             mingw-w64-x86_64-rust
-            mingw-w64-x86_64-gcc-libs
+            mingw-w64-x86_64-toolchain
       - name: Build
         shell: msys2 {0}
         run: |
