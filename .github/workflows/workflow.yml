@@ -82,6 +82,8 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v3
+      - shell: powershell
+        run: Get-Command cargo
       # - name: Import GPG key
       #   id: import_gpg
       #   uses: crazy-max/ghaction-import-gpg@v5
@@ -98,10 +100,9 @@ jobs:
         shell: msys2 {0}
         run: |
           mkdir bin
-          ln -s "C:/Users/runneradmin/.cargo/bin/cargo.exe" bin/cargo
-          export PATH="D:/a/rosters/rosters/bin:$PATH"
+          ln -s "/c/Users/runneradmin/.cargo/bin/cargo.exe" bin/cargo
+          export PATH="/d/a/rosters/rosters/bin:$PATH"
           pwd
-          ls -lh "D:/a/rosters/rosters/bin"
           which cargo
           # mkdir lib/.cargo
           # echo "[build]\ntarget = \"x86_64-pc-windows-gnu\"" > lib/.cargo/config
