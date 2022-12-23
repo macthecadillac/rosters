@@ -101,8 +101,8 @@ jobs:
           # ln -s "/c/Users/runneradmin/.cargo/bin/cargo.exe" bin/cargo
           # export PATH="/d/a/rosters/rosters/bin:$PATH"
           export PATH="/c/Users/runneradmin/.cargo/bin:$PATH"
-          mkdir lib/.cargo
-          echo "[build]\ntarget = \"x86_64-pc-windows-gnu\"" > lib/.cargo/config
+          mkdir .cargo
+          echo "[build]\ntarget = \"x86_64-pc-windows-gnu\"" > .cargo/config
           D:/cygwin/wrapperbin/opam.cmd install . --deps-only
           D:/cygwin/wrapperbin/opam.cmd exec -- dune build
       # - name: Rename, strip and sign
