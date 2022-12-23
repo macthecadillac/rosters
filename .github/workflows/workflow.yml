@@ -88,13 +88,14 @@ jobs:
       #   with:
       #     gpg_private_key: ${{ secrets.GPG_PRIVATE_KEY }}
       #     passphrase: ${{ secrets.GPG_KEY_PASSPHRASE }}
-      - name: Setup OCaml Toolchain
-        uses: ocaml/setup-ocaml@v2
-        with:
-            ocaml-compiler: 4.14.0
+      # - name: Setup OCaml Toolchain
+      #   uses: ocaml/setup-ocaml@v2
+      #   with:
+      #       ocaml-compiler: 4.14.0
       - name: Setup MSYS2/MinGW
         uses: msys2/setup-msys2@v2
         with:
+          msystem: CLANG64
           install: >-
             git
             base-devel
@@ -102,10 +103,10 @@ jobs:
       - name: Build
         shell: msys2 {0}
         run: |
-          export PATH="/d/cygwin/bin:$PATH"
-          # export PATH="$PATH:/d/cygwin/bin"
-          opam install . --deps-only
-          opam exec -- dune build
+          # export PATH="/d/cygwin/bin:$PATH"
+          # opam install . --deps-only
+          # opam exec -- dune build
+          cargo build --manifest-path lib/Cargo.toml
       # - name: Rename, strip and sign
       #   shell: msys2 {0}
       #   run: |

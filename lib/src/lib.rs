@@ -8,23 +8,25 @@ use xlsxwriter::{Format, FormatColor, FormatUnderline, Workbook};
 
 use std::collections::LinkedList;
 
-#[derive(ocaml::ToValue, ocaml::FromValue, Clone, Copy)]
-#[ocaml::sig("Bold | Italic | Underline")]
+// #[derive(ocaml::ToValue, ocaml::FromValue, Clone, Copy)]
+// #[ocaml::sig("Bold | Italic | Underline")]
+#[derive(Clone, Copy)]
 pub enum Typography { Bold, Italic, Underline }
 
-#[derive(ocaml::ToValue, ocaml::FromValue, Clone, Copy)]
-#[ocaml::sig("Red | Blue | Green | Black")]
+// #[derive(ocaml::ToValue, ocaml::FromValue, Clone, Copy)]
+// #[ocaml::sig("Red | Blue | Green | Black")]
+#[derive(Clone, Copy)]
 pub enum Color { Red, Blue, Green, Black }
 
-#[derive(ocaml::ToValue, ocaml::FromValue)]
-#[ocaml::sig("Text of String.t | Float of float | Formula of String.t | Empty")]
+// #[derive(ocaml::ToValue, ocaml::FromValue)]
+// #[ocaml::sig("Text of String.t | Float of float | Formula of String.t | Empty")]
 pub enum Content { Text(String), Float(f64), Formula(String), Empty }
 
-#[derive(ocaml::ToValue, ocaml::FromValue)]
-#[ocaml::sig("{ typography : typography Option.t;
-                color : color;
-                font : String.t;
-                content : content}")]
+// #[derive(ocaml::ToValue, ocaml::FromValue)]
+// #[ocaml::sig("{ typography : typography Option.t;
+//                 color : color;
+//                 font : String.t;
+//                 content : content}")]
 pub struct XlsxCell {
     pub typography: Option<Typography>,
     pub color: Color,
@@ -32,9 +34,9 @@ pub struct XlsxCell {
     pub content: Content
 }
 
-#[derive(ocaml::ToValue, ocaml::FromValue)]
-#[ocaml::sig("{ name : String.t;
-                data : xlsx_cell List.t List.t }")]
+// #[derive(ocaml::ToValue, ocaml::FromValue)]
+// #[ocaml::sig("{ name : String.t;
+//                 data : xlsx_cell List.t List.t }")]
 pub struct XlsxSheet {
     pub name: String,
     pub data: LinkedList<LinkedList<XlsxCell>>
@@ -84,9 +86,9 @@ impl<'a> FormatBuilder<'a> {
     }
 }
 
-#[derive(ocaml::ToValue, ocaml::FromValue)]
-#[ocaml::sig("{ sheets : xlsx_sheet List.t }")]
-struct XlsxWorkbook { sheets: LinkedList<XlsxSheet> }
+// #[derive(ocaml::ToValue, ocaml::FromValue)]
+// #[ocaml::sig("{ sheets : xlsx_sheet List.t }")]
+pub struct XlsxWorkbook { sheets: LinkedList<XlsxSheet> }
 
 impl XlsxWorkbook {
     fn write(&self, filename: &str) -> Result<()> {
@@ -116,8 +118,8 @@ impl XlsxWorkbook {
     }
 }
 
-#[ocaml::func]
-#[ocaml::sig("String.t -> xlsx_sheet List.t -> (unit, String.t) Result.t")]
+// #[ocaml::func]
+// #[ocaml::sig("String.t -> xlsx_sheet List.t -> (unit, String.t) Result.t")]
 pub fn write_xlsx(filename: String, sheets: XlsxWorkbook)
     -> std::result::Result<(), String> {
     sheets.write(&filename).map_err(|e| format!("{:?}", e))
