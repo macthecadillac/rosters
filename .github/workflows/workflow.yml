@@ -99,7 +99,7 @@ jobs:
         run: |
           # mkdir rt
           # ln -ls "C:/Users/runneradmin/.cargo/bin/cargo.exe" rt/cargo
-          ls "C:/Users/runneradmin/.cargo/bin/cargo.exe"
+          ls "C:/Users/runneradmin/.cargo/"
           # mkdir lib/.cargo
           # echo "[build]\ntarget = \"x86_64-pc-windows-gnu\"" > lib/.cargo/config
           # D:/cygwin/wrapperbin/opam.cmd install . --deps-only
