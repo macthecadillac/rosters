@@ -82,16 +82,16 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v3
-      - name: Import GPG key
-        id: import_gpg
-        uses: crazy-max/ghaction-import-gpg@v5
-        with:
-          gpg_private_key: ${{ secrets.GPG_PRIVATE_KEY }}
-          passphrase: ${{ secrets.GPG_KEY_PASSPHRASE }}
-      - name: Setup OCaml Toolchain
-        uses: ocaml/setup-ocaml@v2
-        with:
-            ocaml-compiler: 4.14.0
+      # - name: Import GPG key
+      #   id: import_gpg
+      #   uses: crazy-max/ghaction-import-gpg@v5
+      #   with:
+      #     gpg_private_key: ${{ secrets.GPG_PRIVATE_KEY }}
+      #     passphrase: ${{ secrets.GPG_KEY_PASSPHRASE }}
+      # - name: Setup OCaml Toolchain
+      #   uses: ocaml/setup-ocaml@v2
+      #   with:
+      #       ocaml-compiler: 4.14.0
       - name: Setup MSYS2/MinGW
         uses: msys2/setup-msys2@v2
         with:
@@ -110,8 +110,9 @@ jobs:
           mkdir .cargo
           echo "[build]" > .cargo/config
           echo "target = 'x86_64-pc-windows-gnu'" >> .cargo/config
-          D:/cygwin/wrapperbin/opam.cmd install . --deps-only
-          D:/cygwin/wrapperbin/opam.cmd exec -- dune build
+          which x86_64-w64-mingw32-gcc.exe
+          # D:/cygwin/wrapperbin/opam.cmd install . --deps-only
+          # D:/cygwin/wrapperbin/opam.cmd exec -- dune build
       # - name: Rename, strip and sign
       #   shell: powershell
       #   run: |
