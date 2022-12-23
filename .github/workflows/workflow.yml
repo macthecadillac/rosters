@@ -115,10 +115,11 @@ jobs:
           # which x86_64-w64-mingw32-gcc.exe
           # which x86_64-w64-mingw32-gcc-ar
           ls "C:/msys64"
-          echo "here"
-          ls "C:/msys64/home"
-          echo "here2"
-          ls "C:/msys64/opt"
+          # echo "here"
+          # ls "C:/msys64/home"
+          # echo "here2"
+          # ls "C:/msys64/opt"
+          C:/msys64/msys2_shell.cmd
           # D:/cygwin/wrapperbin/opam.cmd install . --deps-only
           # D:/cygwin/wrapperbin/opam.cmd exec -- dune build
       # - name: Rename, strip and sign
