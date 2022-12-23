@@ -101,7 +101,7 @@ jobs:
       #       base-devel
       #       mingw-w64-x86_64-gcc
       - name: Build
-        # shell: bash
+        shell: bash
         run: |
           # mkdir bin
           # ln -s "/c/Users/runneradmin/.cargo/bin/cargo.exe" bin/cargo
@@ -114,7 +114,8 @@ jobs:
           echo "target = 'x86_64-pc-windows-gnu'" >> .cargo/config
           # which x86_64-w64-mingw32-gcc.exe
           # which x86_64-w64-mingw32-gcc-ar
-          C:/msys64/mingw64.exe -c "cargo build --release --manifest-path lib/Cargo.toml"
+          ls "C:/msys64"
+          # -c "cargo build --release --manifest-path lib/Cargo.toml"
           # D:/cygwin/wrapperbin/opam.cmd install . --deps-only
           # D:/cygwin/wrapperbin/opam.cmd exec -- dune build
       # - name: Rename, strip and sign
