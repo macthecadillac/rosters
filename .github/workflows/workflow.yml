@@ -92,23 +92,22 @@ jobs:
       #   uses: ocaml/setup-ocaml@v2
       #   with:
       #       ocaml-compiler: 4.14.0
-      - name: Setup MSYS2/MinGW
-        uses: msys2/setup-msys2@v2
-        with:
-          update: false
-          install: >-
-            git
-            base-devel
-            mingw-w64-x86_64-headers
-            mingw-w64-x86_64-gcc
+      # - name: Setup MSYS2/MinGW
+      #   uses: msys2/setup-msys2@v2
+      #   with:
+      #     update: false
+      #     install: >-
+      #       git
+      #       base-devel
+      #       mingw-w64-x86_64-gcc
       - name: Build
-        shell: msys2 {0}
+        shell: bash
         run: |
           # mkdir bin
           # ln -s "/c/Users/runneradmin/.cargo/bin/cargo.exe" bin/cargo
           # export PATH="/d/a/rosters/rosters/bin:$PATH"
-          export PATH="/c/Users/runneradmin/.cargo/bin:$PATH"
-          mkdir .cargo
+          # export PATH="/c/Users/runneradmin/.cargo/bin:$PATH"
+          # mkdir .cargo
           echo "[build]" > .cargo/config
           echo "target = 'x86_64-pc-windows-gnu'" >> .cargo/config
           # which x86_64-w64-mingw32-gcc.exe
