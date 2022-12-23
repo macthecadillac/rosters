@@ -80,7 +80,7 @@ jobs:
   build-windows:
     runs-on: windows-latest
     env:
-      CPLUS_INCLUDE_PATH: "C:\mingw\include"
+      CPLUS_INCLUDE_PATH: C:\mingw\include
     steps:
       - name: Checkout code
         uses: actions/checkout@v3
