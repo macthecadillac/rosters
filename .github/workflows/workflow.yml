@@ -136,9 +136,7 @@ jobs:
           mkdir lib/.cargo
           echo "[build]" > lib/.cargo/config
           echo "target = 'x86_64-pc-windows-gnu'" >> lib/.cargo/config
-          ls -a D:\\cygwin\\wrapperbin
-          ls -a D:\\cygwin\\bin
-          # D:\\cygwin\\wrapperbin\\opam install . --deps-only
+          D:\\cygwin\\wrapperbin\\opam.cmd install . --deps-only
           # D:\\cygwin\\wrapperbin\\opam exec -- dune build
       # - name: Rename, strip and sign
       #   run: |
