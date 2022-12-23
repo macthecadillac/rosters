@@ -77,42 +77,6 @@ jobs:
   #         name: rosters-macos-latest-x86_64
   #         path: rosters-macos-x86_64.zip
 
-  # build-windows:
-  #   runs-on: windows-latest
-  #   env:
-  #     CPLUS_INCLUDE_PATH: C:\mingw\include
-  #   steps:
-  #     - name: Checkout code
-  #       uses: actions/checkout@v3
-  #     - name: Import GPG key
-  #       id: import_gpg
-  #       uses: crazy-max/ghaction-import-gpg@v5
-  #       with:
-  #         gpg_private_key: ${{ secrets.GPG_PRIVATE_KEY }}
-  #         passphrase: ${{ secrets.GPG_KEY_PASSPHRASE }}
-  #     - name: Setup OCaml Toolchain
-  #       uses: ocaml/setup-ocaml@v2
-  #       with:
-  #           ocaml-compiler: 4.14.0
-  #     - name: Build
-  #       run: |
-  #         mkdir .cargo
-  #         echo "[build]" > .cargo/config
-  #         echo "target = 'x86_64-pc-windows-gnu'" >> .cargo/config
-  #         opam install . --deps-only
-  #         opam exec -- dune build
-  #     - name: Rename, strip and sign
-  #       run: |
-  #         mv _build/default/src/Main.exe rosters.exe
-  #         strip rosters.exe
-  #         gpg --output rosters.exe.sig --detach-sig --armor rosters.exe
-  #         zip rosters-windows-x86_64.zip rosters.exe rosters.exe.sig README.md LICENSE
-  #     - name: Upload artifacts
-  #       uses: actions/upload-artifact@v3
-  #       with:
-  #         name: rosters-windows-latest-x86_64
-  #         path: rosters-windows-x86_64.zip
-
   build-windows:
     runs-on: windows-latest
     steps:
@@ -133,7 +97,7 @@ jobs:
       - name: Build
         shell: msys2 {0}
         run: |
-          alias cargo="C:\Users\runneradmin\.cargo\bin\cargo.exe"
+          export PATH="C:\Users\runneradmin\.cargo\bin:$PATH"
           mkdir lib/.cargo
           echo "[build]\ntarget = \"x86_64-pc-windows-gnu\"" > lib/.cargo/config
           D:/cygwin/wrapperbin/opam.cmd install . --deps-only
@@ -155,45 +119,6 @@ jobs:
       #   with:
       #     name: rosters-windows-latest-x86_64
       #     path: rosters-windows-x86_64.zip
-
-  # build-windows:
-  #   runs-on: ubuntu-latest
-  #   steps:
-  #     - name: Checkout code
-  #       uses: actions/checkout@v3
-  #     - name: Setup Linux OCaml Toolchain
-  #       uses: ocaml/setup-ocaml@v2
-  #       with:
-  #         ocaml-compiler: 4.14.0
-  #     - name: Import GPG key
-  #       id: import_gpg
-  #       uses: crazy-max/ghaction-import-gpg@v5
-  #       with:
-  #         gpg_private_key: ${{ secrets.GPG_PRIVATE_KEY }}
-  #         passphrase: ${{ secrets.GPG_KEY_PASSPHRASE }}
-  #     - name: Setup cross compiler
-  #       run: |
-  #         sudo apt install -y gcc-mingw-w64-x86-64
-  #         opam repository add windows https://github.com/ocaml-cross/opam-cross-windows.git
-  #         eval `opam config env`
-  #         opam install conf-flambda-windows
-  #         opam install ocaml-windows
-  #     - name: Build
-  #       run: |
-  #         opam install . --deps-only
-  #         opam exec -- dune build -x windows
-  #     - name: Rename, strip and sign
-  #       run: |
-  #         mv _build/default/src/Main.exe rosters
-  #         chmod 755 rosters
-  #         strip rosters
-  #         gpg --output rosters.sig --detach-sig --armor rosters
-  #         tar -czvf rosters-linux-x86_64.tar.gz rosters rosters.sig README.md LICENSE
-  #     - name: Upload artifacts
-  #       uses: actions/upload-artifact@v3
-  #       with:
-  #         name: rosters-ubuntu-20.04-x86_64
-  #         path: rosters-linux-x86_64.tar.gz
 
   # release:
   #   runs-on: ubuntu-latest
