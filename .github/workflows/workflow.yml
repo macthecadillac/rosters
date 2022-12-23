@@ -101,7 +101,7 @@ jobs:
       #       base-devel
       #       mingw-w64-x86_64-gcc
       - name: Build
-        shell: msys2bash
+        shell: C:/msys64/usr/bin/bash.exe
         run: |
           # mkdir bin
           # ln -s "/c/Users/runneradmin/.cargo/bin/cargo.exe" bin/cargo
