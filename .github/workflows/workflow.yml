@@ -92,21 +92,22 @@ jobs:
         uses: ocaml/setup-ocaml@v2
         with:
             ocaml-compiler: 4.14.0
-      # - name: Setup MSYS2/MinGW
-      #   uses: msys2/setup-msys2@v2
-      #   with:
-      #     install: >-
-      #       git
-      #       base-devel
-      #       mingw-w64-x86_64-rust
+      - name: Setup MSYS2/MinGW
+        uses: msys2/setup-msys2@v2
+        with:
+          install: >-
+            git
+            base-devel
+            mingw-w64-x86_64-rust
       - name: Build
         # shell: msys2 {0}
         shell: bash
         run: |
           # ls /d/cygwin/wrapperbin/
-          cat /d/cygwin/wrapperbin/opam.cmd
-          # D:/cygwin/wrapperbin/opam.cmd install . --deps-only
-          # D:/cygwin/wrapperbin/opam.cmd exec -- dune build
+          # cat /d/cygwin/wrapperbin/opam.cmd
+          export PATH="/d/cygwin/bin:$PATH"
+          opam install . --deps-only
+          opam exec -- dune build
       # - name: Rename, strip and sign
       #   shell: msys2 {0}
       #   run: |
