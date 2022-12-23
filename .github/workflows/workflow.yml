@@ -95,19 +95,14 @@ jobs:
       - name: Setup MSYS2/MinGW
         uses: msys2/setup-msys2@v2
         with:
-          msystem: CLANG64
-          # install: >-
-          #   git
-          #   base-devel
-          #   clang
-          #   # mingw-w64-clang-x86_64-zlib
-          #   # mingw-w64-x86_64-gcc
-          #   # mingw-w64-x86_64-zlib
+          install: >-
+            git
+            base-devel
+            mingw-w64-clang-x86_64-rust
       - name: Build
         # shell: bash
         shell: msys2 {0}
         run: |
-          pacman --noconfirm -S git base-devel clang
           # mkdir bin
           # ln -s "/c/Users/runneradmin/.cargo/bin/cargo.exe" bin/cargo
           # export PATH="/d/a/rosters/rosters/bin:$PATH"
@@ -127,7 +122,7 @@ jobs:
           # C:/msys64/msys2_shell.cmd
           # D:/cygwin/wrapperbin/opam.cmd install . --deps-only
           # D:/cygwin/wrapperbin/opam.cmd exec -- dune build
-          /c/Users/runneradmin/.cargo/bin/cargo.exe build --manifest-path lib/Cargo.toml
+          cargo build --manifest-path lib/Cargo.toml
       # - name: Rename, strip and sign
       #   shell: powershell
       #   run: |
