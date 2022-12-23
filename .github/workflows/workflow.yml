@@ -128,17 +128,16 @@ jobs:
         uses: ocaml/setup-ocaml@v2
         with:
             ocaml-compiler: 4.14.0
-      # - name: Setup MSYS2/MinGW
-      #   uses: msys2/setup-msys2@v2
+      - name: Setup MSYS2/MinGW
+        uses: msys2/setup-msys2@v2
       - name: Build
-        # shell: msys2 {0}
+        shell: msys2 {0}
         run: |
           mkdir lib/.cargo
           echo "[build]" > lib/.cargo/config
           echo "target = 'x86_64-pc-windows-gnu'" >> lib/.cargo/config
-          # D:\\cygwin\\bin\\opam.exe install . --deps-only
-          # D:\\cygwin\\bin\\opam.exe exec -- dune build
-          opam install . --deps-only
+          D:\\cygwin\\wrapperbin\\opam install . --deps-only
+          # D:\\cygwin\\wrapperbin\\opam exec -- dune build
       # - name: Rename, strip and sign
       #   run: |
       #     mv _build/default/src/Main.exe rosters.exe
