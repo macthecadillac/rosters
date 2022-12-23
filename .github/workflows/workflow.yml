@@ -98,7 +98,7 @@ jobs:
         shell: msys2 {0}
         run: |
           mkdir rt
-          ln -ls "C:/Users/runneradmin/.cargo/bin/cargo.exe" rt/cargo
+          ln -s "C:/Users/runneradmin/.cargo/bin/cargo.exe" rt/cargo
           # export PATH="C:\Users\runneradmin\.cargo\bin:$PATH"
           pwd
           which cargo
