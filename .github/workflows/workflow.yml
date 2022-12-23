@@ -115,6 +115,10 @@ jobs:
           # which x86_64-w64-mingw32-gcc.exe
           # which x86_64-w64-mingw32-gcc-ar
           ls "C:/msys64"
+          echo "here"
+          ls "C:/msys64/mingw64"
+          echo "here2"
+          /c/msys64/mingw64.exe
           # -c "cargo build --release --manifest-path lib/Cargo.toml"
           # D:/cygwin/wrapperbin/opam.cmd install . --deps-only
           # D:/cygwin/wrapperbin/opam.cmd exec -- dune build
