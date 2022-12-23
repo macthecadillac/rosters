@@ -8,8 +8,8 @@ edition = "2021"
 crate-type = ["staticlib"]
 
 [dependencies]
-# ocaml = "^1.0.0-beta"
-# ocaml-interop = "0.8.8"
+ocaml = "^1.0.0-beta"
+ocaml-interop = "0.8.8"
 xlsxwriter = "0.5.0"
 derive_more = "0.99"
 
