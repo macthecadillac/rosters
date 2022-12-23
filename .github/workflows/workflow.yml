@@ -95,12 +95,11 @@ jobs:
       - name: Setup MSYS2/MinGW
         uses: msys2/setup-msys2@v2
         with:
-          msystem: CLANG64
           install: >-
             git
             base-devel
-            mingw-w64-clang-x86_64-gcc-compat
-            mingw-w64-clang-x86_64-rust
+            mingw-w64-x86_64-rust
+            mingw-w64-x86_64-gcc-libs
       - name: Build
         shell: msys2 {0}
         run: |
