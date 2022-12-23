@@ -101,7 +101,7 @@ jobs:
       #       base-devel
       #       mingw-w64-x86_64-gcc
       - name: Build
-        shell: bash
+        # shell: bash
         run: |
           # mkdir bin
           # ln -s "/c/Users/runneradmin/.cargo/bin/cargo.exe" bin/cargo
@@ -114,7 +114,7 @@ jobs:
           echo "target = 'x86_64-pc-windows-gnu'" >> .cargo/config
           # which x86_64-w64-mingw32-gcc.exe
           # which x86_64-w64-mingw32-gcc-ar
-          ls "C:/msys64"
+          # ls "C:/msys64"
           # echo "here"
           # ls "C:/msys64/home"
           # echo "here2"
