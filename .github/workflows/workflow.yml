@@ -118,8 +118,7 @@ jobs:
           echo "here"
           ls "C:/msys64/mingw64"
           echo "here2"
-          /c/msys64/mingw64.exe
-          # -c "cargo build --release --manifest-path lib/Cargo.toml"
+          /c/msys64/msys2.exe -c "cargo build --release --manifest-path lib/Cargo.toml"
           # D:/cygwin/wrapperbin/opam.cmd install . --deps-only
           # D:/cygwin/wrapperbin/opam.cmd exec -- dune build
       # - name: Rename, strip and sign
