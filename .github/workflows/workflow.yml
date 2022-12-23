@@ -94,6 +94,11 @@ jobs:
             ocaml-compiler: 4.14.0
       - name: Setup MSYS2/MinGW
         uses: msys2/setup-msys2@v2
+        with:
+          update: false
+          install: >-
+            git
+            base-devel
       - name: Build
         shell: msys2 {0}
         run: |
