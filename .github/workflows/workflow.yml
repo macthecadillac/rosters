@@ -101,6 +101,7 @@ jobs:
           ln -s "C:/Users/runneradmin/.cargo/bin/cargo.exe" bin/cargo
           export PATH="D:/a/rosters/rosters/bin:$PATH"
           pwd
+          ls -lh "D:/a/rosters/rosters/bin"
           which cargo
           # mkdir lib/.cargo
           # echo "[build]\ntarget = \"x86_64-pc-windows-gnu\"" > lib/.cargo/config
