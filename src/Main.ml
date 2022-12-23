@@ -208,6 +208,6 @@ let () =
     let doc = "remove configuration" in
     Cmd.v (Cmd.info ~doc "reset") Term.(const remove_config $ const ()) in
   let main =
-    let doc = "rosters" in
-    Cmd.(group (info ~doc "rosters") [generate; configure; reset]) in
+    let doc = "rosters" and version = "w22" in
+    Cmd.(group (info ~doc ~version "rosters") [generate; configure; reset]) in
   exit @@ Cmd.eval_result main

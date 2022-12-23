@@ -1,6 +1,6 @@
 (lang dune 3.5)
 (name rosters)
-(version 0.91)
+(version w22)
 
 (generate_opam_files true)
 (maintainers "Mac Lee")
