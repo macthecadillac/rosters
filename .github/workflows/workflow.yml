@@ -101,7 +101,7 @@ jobs:
       #       base-devel
       #       mingw-w64-x86_64-gcc
       - name: Build
-        shell: bash
+        # shell: bash
         run: |
           # mkdir bin
           # ln -s "/c/Users/runneradmin/.cargo/bin/cargo.exe" bin/cargo
