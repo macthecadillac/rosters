@@ -97,9 +97,9 @@ jobs:
       - name: Build
         shell: msys2 {0}
         run: |
-          mkdir rt
-          ln -s "C:/Users/runneradmin/.cargo/bin/cargo.exe" rt/cargo
-          # export PATH="C:\Users\runneradmin\.cargo\bin:$PATH"
+          mkdir bin
+          ln -s "C:/Users/runneradmin/.cargo/bin/cargo.exe" bin/cargo
+          export PATH="D:/a/rosters/rosters/bin:$PATH"
           pwd
           which cargo
           # mkdir lib/.cargo
