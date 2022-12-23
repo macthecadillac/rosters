@@ -91,14 +91,13 @@ jobs:
       - name: Setup OCaml Toolchain
         uses: ocaml/setup-ocaml@v2
         with:
-            ocaml-compiler: 4.14.0
+            ocaml-compiler: ocaml-variants.4.14.0+options,ocaml-option-static
       - name: Setup MSYS2/MinGW
         uses: msys2/setup-msys2@v2
         with:
-          msystem: CLANG64
           install: >-
-            mingw-w64-clang-x86_64-rust
-            mingw-w64-clang-x86_64-toolchain
+            mingw-w64-x86_64-rust
+            mingw-w64-x86_64-toolchain
       - name: Build
         shell: msys2 {0}
         run: |
