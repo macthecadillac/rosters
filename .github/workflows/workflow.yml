@@ -131,7 +131,7 @@ jobs:
       - name: Setup MSYS2/MinGW
         uses: msys2/setup-msys2@v2
       - name: Build
-        shell: mingw64 {0}
+        shell: msys2 {0}
         run: |
           alias cargo="C:\Users\runneradmin\.cargo\bin\cargo.exe"
           mkdir lib/.cargo
@@ -139,7 +139,7 @@ jobs:
           D:/cygwin/wrapperbin/opam.cmd install . --deps-only
           D:/cygwin/wrapperbin/opam.cmd exec -- dune build
       # - name: Rename, strip and sign
-      #   shell: pwsh
+      #   shell: powershell
       #   run: |
       #     Move-Item -Path _build/default/src/Main.exe -Destination rosters.exe
       #     strip rosters.exe
