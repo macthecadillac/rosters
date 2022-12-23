@@ -131,19 +131,25 @@ jobs:
       - name: Setup MSYS2/MinGW
         uses: msys2/setup-msys2@v2
       - name: Build
-        shell: msys2 {0}
+        shell: mingw {0}
         run: |
+          alias cargo="C:\Users\runneradmin\.cargo\bin\cargo.exe"
           mkdir lib/.cargo
-          echo "[build]" > lib/.cargo/config
-          echo "target = 'x86_64-pc-windows-gnu'" >> lib/.cargo/config
-          D:\\cygwin\\wrapperbin\\opam.cmd install . --deps-only
-          D:\\cygwin\\wrapperbin\\opam.cmd exec -- dune build
+          echo "[build]\ntarget = \"x86_64-pc-windows-gnu\"" > lib/.cargo/config
+          D:/cygwin/wrapperbin/opam.cmd install . --deps-only
+          D:/cygwin/wrapperbin/opam.cmd exec -- dune build
       # - name: Rename, strip and sign
+      #   shell: pwsh
       #   run: |
-      #     mv _build/default/src/Main.exe rosters.exe
+      #     Move-Item -Path _build/default/src/Main.exe -Destination rosters.exe
       #     strip rosters.exe
       #     gpg --output rosters.exe.sig --detach-sig --armor rosters.exe
-      #     Compress-Archive rosters-windows-x86_64.zip rosters.exe rosters.exe.sig README.md LICENSE
+      #     $compress = @{
+      #       Path = "rosters.exe", "rosters.exe.sig", "README.md", "LICENSE"
+      #       CompressionLevel = "Optimal"
+      #       DestinationPath = "rosters-windows-x86_64.zip"
+      #     }
+      #     Compress-Archive @compress
       # - name: Upload artifacts
       #   uses: actions/upload-artifact@v3
       #   with:
