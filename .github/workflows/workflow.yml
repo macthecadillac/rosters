@@ -97,9 +97,11 @@ jobs:
       - name: Build
         shell: msys2 {0}
         run: |
-          # mkdir rt
-          # ln -ls "C:/Users/runneradmin/.cargo/bin/cargo.exe" rt/cargo
-          ls "C:/Users/runneradmin/.cargo/"
+          mkdir rt
+          ln -ls "C:/Users/runneradmin/.cargo/bin/cargo.exe" rt/cargo
+          # export PATH="C:\Users\runneradmin\.cargo\bin:$PATH"
+          pwd
+          which cargo
           # mkdir lib/.cargo
           # echo "[build]\ntarget = \"x86_64-pc-windows-gnu\"" > lib/.cargo/config
           # D:/cygwin/wrapperbin/opam.cmd install . --deps-only
