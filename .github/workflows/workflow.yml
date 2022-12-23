@@ -103,7 +103,8 @@ jobs:
         # shell: msys2 {0}
         shell: bash
         run: |
-          ls /d/cygwin/wrapperbin/
+          # ls /d/cygwin/wrapperbin/
+          cat /d/cygwin/wrapperbin/opam.cmd
           # D:/cygwin/wrapperbin/opam.cmd install . --deps-only
           # D:/cygwin/wrapperbin/opam.cmd exec -- dune build
       # - name: Rename, strip and sign
