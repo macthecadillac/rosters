@@ -174,12 +174,12 @@ let generate_rosters lab data_path output_dir =
   let write_pdf section_groups rosters =
     let pdfs =
       let open Monad.Reader in
-      let pdf_of_rosters l = traverse_l Pdf.of_roster l >>= Pdf.to_bytes in
-      let all = traverse_l Pdf.of_roster rosters >>= Pdf.to_bytes in
+      let generate_pdf l = traverse_l Pdf.of_roster l >>= Pdf.to_bytes in
+      let all = generate_pdf rosters in
       let m = SectionMap.of_list @@ List.map (fun x -> Roster.section x, x) rosters in
       let f = List.filter_map (Fun.flip SectionMap.get m) in
       Seq.cons (`N "All", all)
-      @@ Seq.map (Pair.map_snd @@ pdf_of_rosters % f)
+      @@ Seq.map (Pair.map_snd @@ generate_pdf % f)
       @@ Seq.of_list section_groups in
     let fname = function
       | `N s -> Format.sprintf "Lab %i Blank Rosters (%s Sections).pdf" lab s
