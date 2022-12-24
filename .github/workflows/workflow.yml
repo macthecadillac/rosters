@@ -38,7 +38,8 @@ jobs:
           chmod 755 rosters
           strip rosters
           gpg --output rosters.sig --detach-sig --armor rosters
-          tar -czvf rosters-linux-x86_64.tar.gz rosters rosters.sig README.md LICENSE
+      - name: Package
+        run: tar -czvf rosters-linux-x86_64.tar.gz rosters rosters.sig
       - name: Upload artifacts
         uses: actions/upload-artifact@v3
         with:
@@ -77,12 +78,13 @@ jobs:
           security import certificate.p12 -k build.keychain -P $CA_PWD -T /usr/bin/codesign
           security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k $KEYCHAIN_PWD build.keychain
           /usr/bin/codesign --force -s 1835F1EA8D9878A4BA1AAB3E56AA641780D44656 rosters -v
-          zip rosters-macos-x86_64.zip rosters README.md LICENSE
+      - name: Package
+        run: tar -czvf rosters-macos-x86_64.tar.gz rosters
       - name: Upload artifacts
         uses: actions/upload-artifact@v3
         with:
           name: rosters-macos-latest-x86_64
-          path: rosters-macos-x86_64.zip
+          path: rosters-macos-x86_64.tar.gz
 
   release:
     runs-on: ubuntu-latest
@@ -96,10 +98,32 @@ jobs:
         uses: actions/checkout@v3
       - name: Download artifacts
         uses: actions/download-artifact@v3
+      - name: Generate README.html
+        uses: docker://pandoc/core:2.9
+        with:
+          args: >-
+            --metadata title="Rosters"
+            --standalone
+            --output=README.html
+            README.md
+      - name: Package
+        run: |
+          # package for macOS
+          cd rosters-macos-latest-x86_64
+          tar -xzvf rosters-macos-x86_64.tar.gz
+          cp ../README.html .
+          cp ../LICENSE .
+          zip ../rosters-macos-x86_64.zip rosters LICENSE README.html
+          # package for Linux
+          cd ../rosters-ubuntu-latest-x86_64
+          tar -xzvf rosters-linux-x86_64.tar.gz
+          cp ../README.html .
+          cp ../LICENSE .
+          tar -czvf ../rosters-linux-x86_64.tar.gz rosters rosters.sig README.html LICENSE
       - name: Release
         uses: softprops/action-gh-release@v1
         if: startsWith(github.ref, 'refs/tags/')
         with:
           files: |
-            rosters-macos-latest-x86_64/rosters-macos-x86_64.zip
-            rosters-ubuntu-20.04-x86_64/rosters-linux-x86_64.tar.gz
+            rosters-macos-x86_64.zip
+            rosters-linux-x86_64.tar.gz
