@@ -29,7 +29,7 @@ jobs:
           echo "target = 'x86_64-unknown-linux-musl'" >> .cargo/config
       - name: Build
         run: |
-          brew install tree
+          sudo apt -y install tree
           cargo build --release --manifest-path lib/Cargo.toml
           tree lib/target
           # opam install . --deps-only
