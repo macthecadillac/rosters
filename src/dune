@@ -4,7 +4,6 @@
  (action
   (progn
    (run cargo build --manifest-path %{project_root}/../../lib/Cargo.toml --release)
-   (run tree %{project_root}/../../lib)
    (run mv %{project_root}/../../lib/target/release/librosters.a librosters.a))))
 
 (executable
