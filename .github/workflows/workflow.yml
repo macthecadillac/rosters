@@ -21,11 +21,14 @@ jobs:
         with:
           gpg_private_key: ${{ secrets.GPG_PRIVATE_KEY }}
           passphrase: ${{ secrets.GPG_KEY_PASSPHRASE }}
-      - name: Build
+      - name: Setup rust
         run: |
+          rustup target add x86_64-unknown-linux-musl
           mkdir .cargo
           echo "[build]" > .cargo/config
           echo "target = 'x86_64-unknown-linux-musl'" >> .cargo/config
+      - name: Build
+        run: |
           opam install . --deps-only
           opam exec -- dune build
       - name: Rename, strip and sign
