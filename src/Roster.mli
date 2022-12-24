@@ -8,4 +8,4 @@ val groups : t -> Name.t List.t IntMap.t
 
 val of_csv_string : String.t -> t List.t
 
-val to_xlsx : Int.t -> String.t List.t -> t List.t -> Xlsx.sheet List.t
+val to_xlsx : t List.t -> (env, Xlsx.sheet List.t) Monad.Reader.t

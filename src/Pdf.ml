@@ -9,42 +9,18 @@ module R = Monad.Reader
 open Fun
 open Fun.Infix
 
-module Length : sig
-  type t
-  val zero : t
-  val of_in : Float.t -> t
-  val of_mm : Float.t -> t
-  val of_pt : Float.t -> t
-  val of_int : Int.t -> t
-  val to_mm : t -> Float.t
-  val (+) : t -> t -> t
-  val (-) : t -> t -> t
-  val ( * ) : t -> t -> t
-  val ( *.. ) : Float.t -> t -> t
-  val max : t -> t -> t
-end = struct
-  type t = Float.t
-  let zero = 0.
-  let of_in t = t
-  let of_int t = Float.of_int t
-  let of_mm t = t /. 25.4
-  let of_pt t = of_mm (t *. 0.34)
-  let to_mm t = t *. 25.4
-  let ( + ) a b = a +. b
-  let ( - ) a b = a -. b
-  let ( * ) a b = a *. b
-  let ( *.. ) a b = a *. b
-  let max a b = Float.max a b
-end
-
 type page = Vg.image
 
-type font_type = Bold | Regular
-type font_size = FS of Length.t
 type font = Font of String.t
 type placement = C | L
 type box_height = H of Length.t
 type box_width = A | M of Length.t
+
+let l { l; _ } = l
+let h { h; _ } = h
+
+let with_weight weight t = { t with weight }
+let font_spec t = t.weight, t.font_size
 
 let resolve_otf = function
   | Bold -> Font [%blob "fonts/Carlito-Bold.otf"]
@@ -52,21 +28,9 @@ let resolve_otf = function
 
 let otf_name = function Bold -> "cb" | Regular -> "cr"
 
-let l = Length.of_in 8.5
-let h = Length.of_in 11.0
-
-let margin = Length.of_in 0.85
-
-let origin = margin, margin
-
-let bw1 = Length.of_mm 0.3
-let bw2 = Length.of_mm 0.7
-
 let v2 a b = Gg.V2.v (Length.to_mm a) (Length.to_mm b)
-
-let canvas_size = v2 l h
-
-let canvas_view = Gg.Box2.v Gg.P2.o canvas_size
+let canvas_size = R.(v2 <$> asks l <*> asks h)
+let canvas_view = R.(Gg.Box2.v Gg.P2.o <$> canvas_size)
 
 module IntMap = Map.Make (Int)
 
@@ -83,7 +47,7 @@ let text_length text =
   let open R in
   let glyph_count = string_to_glyphs text |> List.map (flip Pair.make 1)
     |> IntMap.add_list_with ~f:(fun _ a b -> a + b) IntMap.empty in
-  let+ font, FS font_size = ask in
+  let+ font, FS font_size = asks font_spec in
   let Font f = resolve_otf font in
   let decoder = Otfm.decoder (`String f) in
   let f acc gid adv _ = acc + IntMap.get_or gid glyph_count ~default:0 * adv in
@@ -96,7 +60,7 @@ let text_length text =
 
 let text_height =
   let open R in
-  let+ font, FS font_size = ask in
+  let+ font, FS font_size = asks font_spec in
   let Font f = resolve_otf font in
   let decoder = Otfm.decoder (`String f) in
   let head = Otfm.head decoder |> Result.get_exn in
@@ -105,13 +69,16 @@ let text_height =
 
 let ymin =
   let open R in
-  let+ font, FS font_size = ask in
+  let+ font, FS font_size = asks font_spec in
   let Font f = resolve_otf font in
   let decoder = Otfm.decoder (`String f) in
   let head = Otfm.head decoder |> Result.get_exn in
   Length.(Float.of_int head.head_ymin /. 2048. *.. font_size)
 
-let coord_shift vec = Gg.V2.(v (x vec) (Length.to_mm h -. y vec))
+let coord_shift vec =
+  let open R in
+  let+ h = asks h in
+  Gg.V2.(v (x vec) (Length.to_mm h -. y vec))
 
 let auto_box_width text =
   (* give 6pts of padding on both sides of the text. 1pt = 0.34mm *)
@@ -126,8 +93,10 @@ let text_box ?text:(text="") placement width (H box_height) border_width =
   let open SR in
   let black = Vg.I.const Gg.Color.black in
   let* ax, ay = get in
-  let anchor = Gg.V2.(coord_shift (v2 ax ay) - v2 Length.zero box_height) in
-  let* font, font_size = ask in
+  let* anchor =
+    let+ shift = lift_reader @@ coord_shift (v2 ax ay) in
+    Gg.V2.(shift - v2 Length.zero box_height) in
+  let* font, font_size = asks font_spec in
   let* text_path =
     let name = otf_name font in
     let slant = `Normal in
@@ -161,15 +130,16 @@ let text_box ?text:(text="") placement width (H box_height) border_width =
     Vg.I.cut ~area path color in
   Vg.I.blend text_path box_path
 
-let write_column_header checkpoints img =
+let write_column_header img =
   let open SR in
   let* x, y = get in
   let* box_height = lift_reader auto_box_height in
+  let* { margin; l; lwidth1; lwidth2; checkpoints; _ } = ask in
   let* chkpts =
     let chkpt_w x =
       let box_width = lift_reader (auto_box_width x) in
       (fun x -> M x) % Length.max box_height <$> box_width in
-    List.map (fun x -> Pair.make <$> chkpt_w x <*> pure x) checkpoints |> sequence_l in
+    traverse_l (fun x -> Pair.make <$> chkpt_w x <*> pure x) checkpoints in
   let left_headings = [M (Length.of_mm 22.), "Signature"; A, "Late"; A, "Group"] in
   let right_headings = chkpts @ [A, "TA Check"]in
   let width = function
@@ -187,16 +157,16 @@ let write_column_header checkpoints img =
   let row_height = H box_height in
   let f (m, text) img =
     let* w = width (m, text) in
-    let* tb = text_box ~text C m row_height (Some bw1) in
+    let* tb = text_box ~text C m row_height (Some lwidth1) in
     Vg.I.blend tb img <$ puts Length.(map_fst ((+) w)) in
   let center_box img =
     let width = M mid_width in
-    let* tb = text_box ~text:"Student" C width row_height (Some bw1) in
+    let* tb = text_box ~text:"Student" C width row_height (Some lwidth1) in
     Vg.I.blend tb img <$ puts Length.(map_fst ((+) mid_width)) in
   let* img =
     let* img =
       let width = M Length.(l - 2. *.. margin) in
-      flip Vg.I.blend img <$> text_box C width row_height (Some bw2) in
+      flip Vg.I.blend img <$> text_box C width row_height (Some lwidth2) in
     let g acc x = acc >>= f x in
     List.fold_left g (pure img) left_headings >>= center_box
       |> flip (List.fold_left g) right_headings in
@@ -220,10 +190,11 @@ let write_group n names widths img =
       | Some (vlines, font, p, text) ->
           let bh = H Length.(box_height * of_int vlines) in
           let* tb =
-            let gen = text_box ~text p (M w) bh (Some bw1) in
+            let* { lwidth1; _ } = ask in
+            let gen = text_box ~text p (M w) bh (Some lwidth1) in
             match font with
             | None -> gen
-            | Some ft -> local (map_fst @@ const ft) gen in
+            | Some weight -> local (with_weight weight) gen in
             Vg.I.blend tb img <$ puts Length.(map_fst @@ (+) w) in
     let g acc x = acc >>= f x in
     List.fold_left g (pure img) row <* put Length.(x, y + box_height) in
@@ -235,8 +206,9 @@ let write_group n names widths img =
       let res = write_row (Some (List.length tl + 1)) hd img in
       List.fold_left f res tl
 
-let write_page_header lab section img =
+let write_page_header section img =
   let open SR in
+  let* { lab; _ } = ask in
   let cells = [Length.of_in 1.7, L, Format.sprintf "Lab %i" lab;
                Length.of_in 3.1, C, Format.sprintf "Section %a" Section.pp section;
                Length.of_in 1.7, L, "Date:"] in
@@ -248,30 +220,34 @@ let write_page_header lab section img =
   let g acc x = acc >>= f x in
   List.fold_left g (pure img) cells <* put Length.(x, y + row_height)
 
-let write_section lab section checkpoints font_size img roster =
-  let page_header = write_page_header lab section img in
-  let headers_r = SR.(join (write_column_header checkpoints <$> page_header)) in
+let write_section section img roster =
+  let open R in
+  let page_header = write_page_header section img in
+  let headers_r = SR.(join (write_column_header <$> page_header)) in
   let gs = Roster.groups roster
     |> IntMap.to_list
     |> List.sort (fun (i, _) (j, _) -> Int.compare i j)
     |> List.map (map_snd (List.map Name.canonical)) in
-  let anchor, (widths, headers) = R.run (SR.run headers_r origin) (Bold, font_size) in
+  let* { origin; _ } = ask in
+  let* anchor, (widths, headers) = local (with_weight Bold) (SR.run headers_r origin) in
   let f acc (n, names) = SR.(acc >>= write_group n names widths) in
-  R.run SR.(run (List.fold_left f (pure headers) gs) anchor) (Regular, font_size)
+  SR.(run (List.fold_left f (pure headers) gs) anchor)
 
-let of_roster lab checkpoints roster =
+let of_roster roster =
+  let open R in
   let white = Vg.I.const Gg.Color.white in
-  let font_size = FS (Length.of_pt (11.)) in
   let section = Roster.section roster in
-  let (_, y), img = write_section lab section checkpoints font_size white roster in
+  let* (_, y), img = write_section section white roster in
+  let* { margin; l; origin; lwidth2; _ } = ask in
   let width = M Length.(l - 2. *.. margin) in
   let height = H Length.(y - margin) in
-  let borders_r = text_box C width height (Some bw2) in
-  flip Vg.I.blend img @@ R.run (SR.eval borders_r origin) (Bold, font_size)
+  let borders_r = text_box C width height (Some lwidth2) in
+  flip Vg.I.blend img <$> (SR.eval borders_r origin)
 
 exception ImpossibleBranch
 
 let to_bytes document =
+  let open R in
   let title = "1L Rosters" in
   let description = "1L Rosters" in
   let xmp = Vg.Vgr.xmp ~title ~description () in
@@ -282,7 +258,9 @@ let to_bytes document =
     | _ -> raise ImpossibleBranch in
   let buf = Buffer.create 0 in
   let r = Vg.Vgr.create ~warn (Vgr_pdf.target ~font ~xmp ()) (`Buffer buf) in
-  let render_page page = ignore (Vg.Vgr.render r (`Image (canvas_size, canvas_view, page))) in
+  let* cs = canvas_size in
+  let+ cv = canvas_view in
+  let render_page page = ignore (Vg.Vgr.render r (`Image (cs, cv, page))) in
   List.iter render_page document;
   ignore (Vg.Vgr.render r `End);
   Buffer.contents buf

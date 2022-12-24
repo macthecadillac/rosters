@@ -32,3 +32,33 @@ module SectionMap : Map.S
 module StringMap : Map.S
   with type 'a t = 'a Map.Make(String).t
   and type key = String.t
+
+module Length : sig
+  type t
+  val zero : t
+  val of_in : Float.t -> t
+  val of_mm : Float.t -> t
+  val of_pt : Float.t -> t
+  val of_int : Int.t -> t
+  val to_mm : t -> Float.t
+  val (+) : t -> t -> t
+  val (-) : t -> t -> t
+  val ( * ) : t -> t -> t
+  val ( *.. ) : Float.t -> t -> t
+  val max : t -> t -> t
+end
+
+type weight = Bold | Regular
+
+type font_size = FS of Length.t
+
+type env = { l : Length.t;
+             h : Length.t;
+             margin : Length.t;
+             origin : Length.t * Length.t;
+             lwidth1 : Length.t;
+             lwidth2 : Length.t;
+             weight : weight;
+             font_size : font_size;
+             lab : Int.t;
+             checkpoints : String.t List.t }

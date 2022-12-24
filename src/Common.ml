@@ -55,3 +55,33 @@ end
 
 module SectionMap = Map.Make (Section)
 module StringMap = Map.Make (String)
+
+module Length = struct
+  type t = Float.t
+  let zero = 0.
+  let of_in t = t
+  let of_int t = Float.of_int t
+  let of_mm t = t /. 25.4
+  let of_pt t = of_mm (t *. 0.34)
+  let to_mm t = t *. 25.4
+  let ( + ) a b = a +. b
+  let ( - ) a b = a -. b
+  let ( * ) a b = a *. b
+  let ( *.. ) a b = a *. b
+  let max a b = Float.max a b
+end
+
+type weight = Bold | Regular
+
+type font_size = FS of Length.t
+
+type env = { l : Length.t;
+             h : Length.t;
+             margin : Length.t;
+             origin : Length.t * Length.t;
+             lwidth1 : Length.t;
+             lwidth2 : Length.t;
+             weight : weight;
+             font_size : font_size;
+             lab : Int.t;
+             checkpoints : String.t List.t }

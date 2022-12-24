@@ -12,6 +12,8 @@ module Reader : sig
   val ( >>= ) : ('r, 'a) t -> ('a -> ('r, 'b) t) -> ('r, 'b) t
   val ( let* ) : ('r, 'a) t -> ('a -> ('r, 'b) t) -> ('r, 'b) t
   val ( let+ ) : ('r, 'a) t -> ('a -> 'b) -> ('r, 'b) t
+  val sequence_l : ('r, 'a) t List.t -> ('r, 'a List.t) t
+  val traverse_l : ('a -> ('r, 'b) t) -> 'a List.t -> ('r, 'b List.t) t
 end
 
 (* A hand-coded monad stack--using modular functors will take too much typing
@@ -39,4 +41,5 @@ module StateReader : sig
   val ( let* ) : ('s, 'r, 'a) t -> ('a -> ('s, 'r, 'b) t) -> ('s, 'r, 'b) t
   val ( let+ ) : ('s, 'r, 'a) t -> ('a -> 'b) -> ('s, 'r, 'b) t
   val sequence_l : ('s, 'r, 'a) t List.t -> ('s, 'r, 'a List.t) t
+  val traverse_l : ('a -> ('s, 'r, 'b) t) -> 'a List.t -> ('s, 'r, 'b List.t) t
 end

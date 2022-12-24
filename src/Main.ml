@@ -1,5 +1,5 @@
 open Containers
-open Fun
+open Fun.Infix
 
 open Common
 
@@ -60,7 +60,7 @@ let read_config config =
     match Otoml.find_result config Otoml.get_table ["ta-assignment"] with
     | Error _ -> Result.pure None
     | Ok table ->
-        List.map (uncurry (maybe_assoc f)) table
+        List.map (Fun.uncurry (maybe_assoc f)) table
         |> Option.sequence_l
         |> Option.to_result "cannot read the \"ta-assignment\" section"
         >|= StringMap.of_list %> Option.some in
@@ -71,10 +71,10 @@ let read_config config =
     match Otoml.find_result config (Otoml.get_table) ["checkpoints"] with
     | Error _ -> Result.pure None
     | Ok table ->
-        List.map (uncurry (maybe_assoc f)) table
+        List.map (Fun.uncurry (maybe_assoc f)) table
         |> Option.sequence_l
         |> Option.to_result "cannot read the \"checkpoints\" section"
-        >>= List.map (fun (s, l) -> Option.map (flip Pair.make l) @@ to_int s)
+        >>= List.map (fun (s, l) -> Option.map (Fun.flip Pair.make l) @@ to_int s)
             %> Option.sequence_l
             %> Option.to_result "cannot read the lab numbers"
         >|= IntMap.of_list %> Option.some in
@@ -136,7 +136,7 @@ let open_config_in_editor () =
     | "Unix" -> Ok (Bos.Cmd.(v "open" % Fpath.to_string path))
     | "Win32" -> Ok (Bos.Cmd.v @@ Fpath.to_string path)
     | _ -> Error "unsupported platform for this option" in
-  Bos.OS.Cmd.run cmd |> Result.map_err @@ const @@
+  Bos.OS.Cmd.run cmd |> Result.map_err @@ Fun.const @@
   "Something went wrong. You can open the configuration file manually in a " ^
   "text editor such as Sublime, Notepad++ or TextEdit. On your system, the " ^
   "configuration " ^ Format.sprintf "file is located at %a" Fpath.pp path
@@ -144,27 +144,40 @@ let open_config_in_editor () =
 let remove_config () =
   match config_path () with
   | None -> Ok ()
-  | Some cpath -> Bos.OS.File.delete cpath |> const (Ok ())
+  | Some cpath -> Bos.OS.File.delete cpath |> Fun.const (Ok ())
 
 let generate_rosters lab data_path output_dir =
   let open Result.Infix in
   let* ta_assignment_opt, checkpoints_opt =
     Option.get_or ~default:(Ok (None, None)) @@ load_config () in
+  let env =
+    let checkpoints =
+      let default = ["1"; "2"; "3"; "4"] in
+      Option.(checkpoints_opt >>= IntMap.get lab |> get_or ~default) in
+    let l = Length.of_in 8.5 in  (* letter size width *)
+    let h = Length.of_in 11.0 in  (* letter size height *)
+    let margin = Length.of_in 0.85 in  (* page margins *)
+    let origin = margin, margin in  (* starting anchor from the top-left *)
+    let lwidth1 = Length.of_mm 0.3 in  (* table border width 1 *)
+    let lwidth2 = Length.of_mm 0.7 in  (* table border width 2 *)
+    let weight = Regular in  (* PDF font weight *)
+    let font_size = FS (Length.of_pt 11.) in  (* PDF font size *)
+    { l; h; margin; origin; lwidth1; lwidth2; weight; font_size; lab; checkpoints } in
   let* prefix = match output_dir with
     | Some s -> Fpath.of_string s >>= Bos.OS.Dir.must_exist |> to_string_err
     | None -> Bos.OS.Dir.current () |> to_string_err in
-  let write_xlsx checkpoints rosters =
-    let xlsx = Roster.to_xlsx lab checkpoints rosters in
+  let write_xlsx rosters =
+    let xlsx = Monad.Reader.run (Roster.to_xlsx rosters) env in
     Fpath.(prefix / (Format.sprintf "Lab %i Summary Attendance Sheet.xlsx" lab))
     |> rename_if_exists |> to_string_err
     >>= Fun.flip Xlsx.write xlsx in
-  let write_pdf checkpoints section_groups rosters =
+  let write_pdf section_groups rosters =
     let pdfs =
-      let pdf_page = Pdf.of_roster lab checkpoints in
-      let pdf_of_rosters = Pdf.to_bytes % List.map pdf_page in
-      let all = Pdf.to_bytes @@ List.map (Pdf.of_roster lab checkpoints) rosters in
+      let open Monad.Reader in
+      let pdf_of_rosters l = traverse_l Pdf.of_roster l >>= Pdf.to_bytes in
+      let all = traverse_l Pdf.of_roster rosters >>= Pdf.to_bytes in
       let m = SectionMap.of_list @@ List.map (fun x -> Roster.section x, x) rosters in
-      let f = List.filter_map (flip SectionMap.get m) in
+      let f = List.filter_map (Fun.flip SectionMap.get m) in
       Seq.cons (`N "All", all)
       @@ Seq.map (Pair.map_snd @@ pdf_of_rosters % f)
       @@ Seq.of_list section_groups in
@@ -172,12 +185,11 @@ let generate_rosters lab data_path output_dir =
       | `N s -> Format.sprintf "Lab %i Blank Rosters (%s Sections).pdf" lab s
       | `S s -> Format.sprintf "Lab %i Blank Rosters (Section %a).pdf" lab Section.pp s in
     (* something of a foldM with EitherT String IO () *)
-    let iter_f acc (n, s) = acc >>= fun () ->
-      Fpath.(prefix / fname n) |> flip Bos.OS.File.write s |> to_string_err in
+    let iter_f acc (n, m) = acc >>= fun () ->
+      Fpath.(prefix / fname n)
+      |> Fun.flip Bos.OS.File.write (Monad.Reader.run m env)
+      |> to_string_err in
     Seq.fold_left iter_f (Ok ()) pdfs in
-  let checkpoints =
-    let default = ["1"; "2"; "3"; "4"] in
-    Option.(checkpoints_opt >>= IntMap.get lab |> get_or ~default) in
   let* rosters =
     Fpath.of_string data_path |> to_string_err
     >>= Bos.OS.File.read %> to_string_err
@@ -185,8 +197,8 @@ let generate_rosters lab data_path output_dir =
   let section_groups =
     Option.get_or ~default:(List.map Roster.(fun x -> `S (section x), [section x]) rosters)
     @@ Option.map (StringMap.to_list %> List.map (fun (x, y) -> `N x, y)) ta_assignment_opt in
-  let* () = write_xlsx checkpoints rosters in
-  write_pdf checkpoints section_groups rosters
+  let* () = write_xlsx rosters in
+  write_pdf section_groups rosters
 
 let () =
   let open Cmdliner in

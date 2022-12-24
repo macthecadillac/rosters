@@ -13,6 +13,9 @@ module Reader = struct
   let pure a r = a, r
   let ( >>= ) fa f r = f (run fa r) r
   let ( let* ) = ( >>= )
+  let sequence_l l = List.fold_left (fun acc x -> List.cons <$> x <*> acc) (pure []) l
+    |> fmap List.rev
+  let traverse_l f l = sequence_l @@ List.map f l
 end
 
 module StateReader = struct
@@ -42,4 +45,5 @@ module StateReader = struct
   let ( let+ ) a f = f <$> a
   let sequence_l l = List.fold_left (fun acc x -> List.cons <$> x <*> acc) (pure []) l
     |> fmap List.rev
+  let traverse_l f l = sequence_l @@ List.map f l
 end

@@ -1,5 +1,5 @@
 type page
 
-val of_roster : Int.t -> String.t List.t -> Roster.t -> page
+val of_roster : Roster.t -> (Common.env, page) Monad.Reader.t
 
-val to_bytes : page List.t -> String.t
+val to_bytes : page List.t -> (Common.env, String.t) Monad.Reader.t
