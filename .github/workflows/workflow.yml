@@ -31,21 +31,19 @@ jobs:
         run: |
           sudo apt -y install tree
           opam install . --deps-only
-          cargo build --release --manifest-path lib/Cargo.toml
-          tree lib/target
-          # opam exec -- dune build
-      # - name: Rename, strip and sign
-      #   run: |
-      #     mv _build/default/src/Main.exe rosters
-      #     chmod 755 rosters
-      #     strip rosters
-      #     gpg --output rosters.sig --detach-sig --armor rosters
-      #     tar -czvf rosters-linux-x86_64.tar.gz rosters rosters.sig README.md LICENSE
-      # - name: Upload artifacts
-      #   uses: actions/upload-artifact@v3
-      #   with:
-      #     name: rosters-ubuntu-20.04-x86_64
-      #     path: rosters-linux-x86_64.tar.gz
+          opam exec -- dune build
+      - name: Rename, strip and sign
+        run: |
+          mv _build/default/src/Main.exe rosters
+          chmod 755 rosters
+          strip rosters
+          gpg --output rosters.sig --detach-sig --armor rosters
+          tar -czvf rosters-linux-x86_64.tar.gz rosters rosters.sig README.md LICENSE
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v3
+        with:
+          name: rosters-ubuntu-20.04-x86_64
+          path: rosters-linux-x86_64.tar.gz
 
   # build-macos:
   #   runs-on: macos-latest
