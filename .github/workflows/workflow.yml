@@ -23,6 +23,9 @@ jobs:
           passphrase: ${{ secrets.GPG_KEY_PASSPHRASE }}
       - name: Build
         run: |
+          mkdir .cargo
+          echo "[build]" > .cargo/config
+          echo "target = 'x86_64-unknown-linux-musl'" >> .cargo/config
           opam install . --deps-only
           opam exec -- dune build
       - name: Rename, strip and sign
