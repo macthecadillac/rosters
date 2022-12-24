@@ -7,7 +7,7 @@ env:
 
 jobs:
   build-linux:
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-latest
     steps:
       - name: Checkout code
         uses: actions/checkout@v3
@@ -25,26 +25,19 @@ jobs:
         run: |
           opam install . --deps-only
           opam exec -- dune build
-      - name: Generate README.html
-        uses: docker://pandoc/core:2.9
-        with:
-          args: >-
-            --standalone
-            --output=README.html
-            README.md
       - name: Rename, strip and sign
         run: |
-          mv _build/default/src/Main.exe lab-tools
-          chmod 755 lab-tools
-          strip lab-tools
-          gpg --output lab-tools.sig --detach-sig --armor lab-tools
+          mv _build/default/src/Main.exe rosters
+          chmod 755 rosters
+          strip rosters
+          gpg --output rosters.sig --detach-sig --armor rosters
       - name: Package
-        run: tar -czvf lab-tools-linux-x86_64.tar.gz lab-tools lab-tools.sig README.html LICENSE
+        run: tar -czvf rosters-linux-x86_64.tar.gz rosters rosters.sig
       - name: Upload artifacts
         uses: actions/upload-artifact@v3
         with:
-          name: lab-tools-ubuntu-20.04-x86_64
-          path: lab-tools-linux-x86_64.tar.gz
+          name: rosters-ubuntu-latest-x86_64
+          path: rosters-linux-x86_64.tar.gz
 
   build-macos:
     runs-on: macos-latest
@@ -59,18 +52,11 @@ jobs:
         run: |
           opam install . --deps-only
           opam exec -- dune build
-      - name: Generate README.html
-        uses: docker://pandoc/core:2.9
-        with:
-          args: >-
-            --standalone
-            --output=README.html
-            README.md
       - name: Rename and strip
         run: |
-          mv _build/default/src/Main.exe lab-tools
-          chmod 755 lab-tools
-          strip lab-tools
+          mv _build/default/src/Main.exe rosters
+          chmod 755 rosters
+          strip rosters
       - name: Sign
         env: 
           BUILD_CA: ${{ secrets.BUILD_CERTIFICATE_BASE64 }}
@@ -84,14 +70,14 @@ jobs:
           security unlock-keychain -p $KEYCHAIN_PWD build.keychain
           security import certificate.p12 -k build.keychain -P $CA_PWD -T /usr/bin/codesign
           security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k $KEYCHAIN_PWD build.keychain
-          /usr/bin/codesign --force -s 1835F1EA8D9878A4BA1AAB3E56AA641780D44656 lab-tools -v
+          /usr/bin/codesign --force -s 1835F1EA8D9878A4BA1AAB3E56AA641780D44656 rosters -v
       - name: Package
-        run: zip lab-tools-macos-x86_64.zip lab-tools README.html LICENSE
+        run: tar -czvf rosters-macos-x86_64.tar.gz rosters
       - name: Upload artifacts
         uses: actions/upload-artifact@v3
         with:
-          name: lab-tools-macos-latest-x86_64
-          path: lab-tools-macos-x86_64.zip
+          name: rosters-macos-latest-x86_64
+          path: rosters-macos-x86_64.tar.gz
 
   release:
     runs-on: ubuntu-latest
@@ -105,10 +91,32 @@ jobs:
         uses: actions/checkout@v3
       - name: Download artifacts
         uses: actions/download-artifact@v3
+      - name: Generate README.html
+        uses: docker://pandoc/core:2.9
+        with:
+          args: >-
+            --metadata title="Rosters"
+            --standalone
+            --output=README.html
+            README.md
+      - name: Package
+        run: |
+          # package for macOS
+          cd rosters-macos-latest-x86_64
+          tar -xzvf rosters-macos-x86_64.tar.gz
+          cp ../README.html .
+          cp ../LICENSE .
+          zip ../rosters-macos-x86_64.zip rosters LICENSE README.html
+          # package for Linux
+          cd ../rosters-ubuntu-latest-x86_64
+          tar -xzvf rosters-linux-x86_64.tar.gz
+          cp ../README.html .
+          cp ../LICENSE .
+          tar -czvf ../rosters-linux-x86_64.tar.gz rosters rosters.sig README.html LICENSE
       - name: Release
         uses: softprops/action-gh-release@v1
         if: startsWith(github.ref, 'refs/tags/')
         with:
           files: |
-            lab-tools-macos-latest-x86_64/lab-tools-macos-x86_64.zip
-            lab-tools-ubuntu-20.04-x86_64/lab-tools-linux-x86_64.tar.gz
+            rosters-macos-x86_64.zip
+            rosters-linux-x86_64.tar.gz
