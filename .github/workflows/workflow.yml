@@ -30,8 +30,8 @@ jobs:
       - name: Build
         run: |
           sudo apt -y install tree
-          cargo build --release --manifest-path lib/Cargo.toml
           opam install . --deps-only
+          cargo build --release --manifest-path lib/Cargo.toml
           tree lib/target
           # opam exec -- dune build
       # - name: Rename, strip and sign
