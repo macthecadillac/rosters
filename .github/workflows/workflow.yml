@@ -115,7 +115,7 @@ jobs:
           tar -czvf ../rosters-linux-x86_64.tar.gz rosters rosters.sig README.html LICENSE
       - name: Release
         uses: softprops/action-gh-release@v1
-        if: startsWith(github.ref, 'refs/tags/')
+        # if: startsWith(github.ref, 'refs/tags/')
         with:
           files: |
             rosters-macos-x86_64.zip
