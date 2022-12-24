@@ -7,36 +7,43 @@ env:
 
 jobs:
   build-linux:
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-latest
     steps:
       - name: Checkout code
         uses: actions/checkout@v3
       - name: Setup OCaml Env
         uses: ocaml/setup-ocaml@v2
         with:
-          ocaml-compiler: ocaml-variants.4.14.0+options,ocaml-option-flambda
+          ocaml-compiler: ocaml-variants.4.14.0+options,ocaml-option-flambda,ocaml-option-static,ocaml-option-musl
       - name: Import GPG key
         id: import_gpg
         uses: crazy-max/ghaction-import-gpg@v5
         with:
           gpg_private_key: ${{ secrets.GPG_PRIVATE_KEY }}
           passphrase: ${{ secrets.GPG_KEY_PASSPHRASE }}
+      - name: Setup rust
+        run: |
+          rustup target add x86_64-unknown-linux-musl
+          mkdir .cargo
+          echo "[build]" > .cargo/config
+          echo "target = 'x86_64-unknown-linux-musl'" >> .cargo/config
       - name: Build
         run: |
+          sed -i 's/\/release\//\/x86_64-unknown-linux-musl\/release\//' src/dune
           opam install . --deps-only
           opam exec -- dune build
       - name: Rename, strip and sign
         run: |
-          mv _build/default/src/Main.exe lab-tools
-          chmod 755 lab-tools
-          strip lab-tools
-          gpg --output lab-tools.sig --detach-sig --armor lab-tools
-          tar -czvf lab-tools-linux-x86_64.tar.gz lab-tools lab-tools.sig README.md LICENSE
+          mv _build/default/src/Main.exe rosters
+          chmod 755 rosters
+          strip rosters
+          gpg --output rosters.sig --detach-sig --armor rosters
+          tar -czvf rosters-linux-x86_64.tar.gz rosters rosters.sig README.md LICENSE
       - name: Upload artifacts
         uses: actions/upload-artifact@v3
         with:
-          name: lab-tools-ubuntu-20.04-x86_64
-          path: lab-tools-linux-x86_64.tar.gz
+          name: rosters-ubuntu-latest-x86_64
+          path: rosters-linux-x86_64.tar.gz
 
   build-macos:
     runs-on: macos-latest
@@ -53,9 +60,9 @@ jobs:
           opam exec -- dune build
       - name: Rename and strip
         run: |
-          mv _build/default/src/Main.exe lab-tools
-          chmod 755 lab-tools
-          strip lab-tools
+          mv _build/default/src/Main.exe rosters
+          chmod 755 rosters
+          strip rosters
       - name: Sign
         env: 
           BUILD_CA: ${{ secrets.BUILD_CERTIFICATE_BASE64 }}
@@ -69,13 +76,13 @@ jobs:
           security unlock-keychain -p $KEYCHAIN_PWD build.keychain
           security import certificate.p12 -k build.keychain -P $CA_PWD -T /usr/bin/codesign
           security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k $KEYCHAIN_PWD build.keychain
-          /usr/bin/codesign --force -s 1835F1EA8D9878A4BA1AAB3E56AA641780D44656 lab-tools -v
-          zip lab-tools-macos-x86_64.zip lab-tools README.md LICENSE
+          /usr/bin/codesign --force -s 1835F1EA8D9878A4BA1AAB3E56AA641780D44656 rosters -v
+          zip rosters-macos-x86_64.zip rosters README.md LICENSE
       - name: Upload artifacts
         uses: actions/upload-artifact@v3
         with:
-          name: lab-tools-macos-latest-x86_64
-          path: lab-tools-macos-x86_64.zip
+          name: rosters-macos-latest-x86_64
+          path: rosters-macos-x86_64.zip
 
   release:
     runs-on: ubuntu-latest
@@ -94,5 +101,5 @@ jobs:
         if: startsWith(github.ref, 'refs/tags/')
         with:
           files: |
-            lab-tools-macos-latest-x86_64/lab-tools-macos-x86_64.zip
-            lab-tools-ubuntu-20.04-x86_64/lab-tools-linux-x86_64.tar.gz
+            rosters-macos-latest-x86_64/rosters-macos-x86_64.zip
+            rosters-ubuntu-20.04-x86_64/rosters-linux-x86_64.tar.gz
