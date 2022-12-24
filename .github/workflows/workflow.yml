@@ -29,7 +29,7 @@ jobs:
           echo "target = 'x86_64-unknown-linux-musl'" >> .cargo/config
       - name: Build
         run: |
-          sed -i 's/\/target\//\/x86_64-unknown-linux-musl\//' src/dune
+          sed -i 's/\/release\//\/x86_64-unknown-linux-musl\/release\//' src/dune
           opam install . --deps-only
           opam exec -- dune build
       - name: Rename, strip and sign
