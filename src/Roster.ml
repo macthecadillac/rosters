@@ -53,9 +53,9 @@ let to_xlsx rosters =
   let summary_page sections =
     let+ { lab; _ } = ask in
     let header =
-      List.(text_cell <$> [Format.sprintf "Lab %i" lab; "Check if complete"]) in
+      List.(text_cell <$> [Printf.sprintf "Lab %i" lab; "Check if complete"]) in
     let entries =
-      List.(pure % text_cell % Format.sprintf "section %i" % Section.to_int <$> sections) in
+      List.(pure % text_cell % Printf.sprintf "section %i" % Section.to_int <$> sections) in
     let data = header :: entries in
     let name = "summary" in
     Xlsx.new_sheet name data in
@@ -73,10 +73,10 @@ let to_xlsx rosters =
       let open List.Infix in
       let* group, names = IntMap.to_list groups |> List.rev in
       let+ name = names in
-      let g = Format.sprintf "%i" group in
+      let g = Printf.sprintf "%i" group in
       [empty_cell; empty_cell; text_cell g; text_cell @@ Name.canonical name] in
     let data = instrs @ [header] @ rows in
-    let name = Format.sprintf "section %i" @@ Section.to_int section in
+    let name = Printf.sprintf "section %i" @@ Section.to_int section in
     new_sheet name data in
   let* summary = summary_page @@ List.map section rosters in
   let+ sheets = traverse_l to_sheets rosters in
