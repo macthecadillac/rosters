@@ -1,4 +1,5 @@
 open Containers
+open Fun
 
 type 'a printer = Format.formatter -> 'a -> unit
 
@@ -33,8 +34,6 @@ module Name = struct
 end
 
 module Section = struct
-  open Fun
-
   type t = Int.t
 
   let compare = Int.compare
@@ -57,18 +56,13 @@ module SectionMap = Map.Make (Section)
 module StringMap = Map.Make (String)
 
 module Length = struct
-  type t = Float.t
+  include Float
   let zero = 0.
-  let of_in t = t
-  let of_int t = Float.of_int t
+  let of_in = id
   let of_mm t = t /. 25.4
   let of_pt t = of_mm (t *. 0.34)
   let to_mm t = t *. 25.4
-  let ( + ) a b = a +. b
-  let ( - ) a b = a -. b
-  let ( * ) a b = a *. b
-  let ( *.. ) a b = a *. b
-  let max a b = Float.max a b
+  let ( *.. ) = ( *. )
 end
 
 type weight = Bold | Regular
