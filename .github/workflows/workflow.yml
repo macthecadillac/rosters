@@ -11,6 +11,8 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v3
+        with:
+          submodules: true
       - name: Setup OCaml Env
         uses: ocaml/setup-ocaml@v2
         with:
@@ -51,6 +53,8 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v3
+        with:
+          submodules: true
       - name: Setup OCaml Env
         uses: ocaml/setup-ocaml@v2
         with:
@@ -96,6 +100,8 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v3
+        with:
+          submodules: true
       - name: Download artifacts
         uses: actions/download-artifact@v3
       - name: Generate README.html
