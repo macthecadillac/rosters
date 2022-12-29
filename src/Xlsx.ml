@@ -1,66 +1,72 @@
 open Containers
 open Fun.Infix
 
-(* TODO: Cell should contain cell indices *)
-type typography = Bold | Italic | Underline
+type t
 
-type color = Red | Blue | Green | Black
+external _workbook_new : String.t -> t = "workbook_new"
 
-module Content = struct
-  type t = Text of String.t | Float of float | Formula of String.t | Empty
+external _workbook_close : t -> Int.t = "workbook_close"
 
-  let to_string = function Text s -> Some s | _ -> None
+(* (1* TODO: Cell should contain cell indices *1) *)
+(* type typography = Bold | Italic | Underline *)
 
-  let to_float = function Float f -> Some f | _ -> None
+(* type color = Red | Blue | Green | Black *)
 
-  let pp fmt = function
-    | Text s | Formula s -> Format.fprintf fmt "%s" s
-    | Float f -> Format.fprintf fmt "%f" f
-    | Empty -> Format.fprintf fmt ""
-end
+(* module Content = struct *)
+(*   type t = Text of String.t | Float of float | Formula of String.t | Empty *)
 
-type cell = { typography : typography Option.t;
-              color : color;
-              font : String.t;
-              content : Content.t}
+(*   let to_string = function Text s -> Some s | _ -> None *)
 
-type sheet = { name : String.t;
-               data : cell List.t List.t }
+(*   let to_float = function Float f -> Some f | _ -> None *)
 
-type workbook = { sheets : sheet List.t }
+(*   let pp fmt = function *)
+(*     | Text s | Formula s -> Format.fprintf fmt "%s" s *)
+(*     | Float f -> Format.fprintf fmt "%f" f *)
+(*     | Empty -> Format.fprintf fmt "" *)
+(* end *)
 
-let cell_pp fmt { content; _ } = Format.fprintf fmt "%a" Content.pp content
+(* type cell = { typography : typography Option.t; *)
+(*               color : color; *)
+(*               font : String.t; *)
+(*               content : Content.t} *)
 
-external _write: String.t -> workbook -> (unit, String.t) Result.t = "write_xlsx"
+(* type sheet = { name : String.t; *)
+(*                data : cell List.t List.t } *)
 
-let write path sheets = Result.map_err (fun s -> "xlsxwriter-rs: " ^ s)
-  @@ _write (Fpath.to_string path) { sheets }
+(* type workbook = { sheets : sheet List.t } *)
 
-let empty_cell =
-  let typography = None in
-  let color = Black in
-  let font = "Calibri" in
-  let content = Content.Text "" in
-  { typography; color; font; content }
+(* let cell_pp fmt { content; _ } = Format.fprintf fmt "%a" Content.pp content *)
 
-let new_cell typography color font content = { typography; color; font; content }
+(* external _write: String.t -> workbook -> (unit, String.t) Result.t = "write_xlsx" *)
 
-let new_sheet name data = { name; data }
+(* let write path sheets = Result.map_err (fun s -> "xlsxwriter-rs: " ^ s) *)
+(*   @@ _write (Fpath.to_string path) { sheets } *)
 
-let num_rows { data; _ } = List.length data
+(* let empty_cell = *)
+(*   let typography = None in *)
+(*   let color = Black in *)
+(*   let font = "Calibri" in *)
+(*   let content = Content.Text "" in *)
+(*   { typography; color; font; content } *)
 
-let text_cell t = { empty_cell with content = Text t }
+(* let new_cell typography color font content = { typography; color; font; content } *)
 
-let formula_cell t = { empty_cell with content = Formula t }
+(* let new_sheet name data = { name; data } *)
 
-let set_color color t = { t with color }
+(* let num_rows { data; _ } = List.length data *)
 
-let set_type typography t = { t with typography = Some typography }
+(* let text_cell t = { empty_cell with content = Text t } *)
 
-let name { name; _ } = name
+(* let formula_cell t = { empty_cell with content = Formula t } *)
 
-let data { data; _ } = data
+(* let set_color color t = { t with color } *)
 
-let content { content; _ } = content
+(* let set_type typography t = { t with typography = Some typography } *)
 
-let float_cell n = { empty_cell with content = Float n }
+(* let name { name; _ } = name *)
+
+(* let data { data; _ } = data *)
+
+(* let content { content; _ } = content *)
+
+(* let float_cell n = { empty_cell with content = Float n } *)

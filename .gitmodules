@@ -1,0 +1,6 @@
+[submodule "lib/zlib"]
+	path = lib/zlib
+	url = https://github.com/madler/zlib.git
+[submodule "lib/xlsxwriter"]
+	path = lib/xlsxwriter
+	url = https://github.com/jmcnamara/libxlsxwriter.git

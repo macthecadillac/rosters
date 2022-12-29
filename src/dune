@@ -1,18 +1,29 @@
 (rule
- (targets librosters.a)
- (deps (glob_files_rec *.rs))
- (action
-  (progn
-   (run cargo build --manifest-path %{project_root}/../../lib/Cargo.toml --release)
-   (run mv %{project_root}/../../lib/target/release/librosters.a librosters.a))))
+  (targets libxlsxwriter.a libz.a)
+  (action
+    (ignore-stdout
+      (progn
+        (run cp -R %{project_root}/../../lib .)
+        (chdir lib/zlib
+               (progn
+                 (run mkdir build)
+                 (run /bin/sh configure --static --prefix=./build)
+                 (run make -j 8)
+                 (run make install)))
+        (chdir lib/xlsxwriter
+               (progn
+                 (run make -I ../zlib/build/include -j 8)))
+        (run cp lib/xlsxwriter/lib/libxlsxwriter.a libxlsxwriter.a)
+        (run cp lib/zlib/build/lib/libz.a libz.a)))))
 
 (executable
- (name Main)
- (public_name rosters)
- (modules Main Roster Common Xlsx Pdf Monad)
- (preprocess (pps ppx_blob))
- (preprocessor_deps
-   (file %{project_root}/fonts/Carlito-Regular.otf)
-   (file %{project_root}/fonts/Carlito-Bold.otf))
- (libraries bos containers cmdliner csv gg otoml str vg vg.pdf)
- (foreign_archives rosters))
+  (name Main)
+  (public_name rosters)
+  (modules Main Roster Common Xlsx Pdf Monad)
+  (preprocess (pps ppx_blob))
+  (preprocessor_deps
+    (file %{project_root}/fonts/Carlito-Regular.otf)
+    (file %{project_root}/fonts/Carlito-Bold.otf))
+  ; (libraries bos containers cmdliner ctypes ctypes-foreign csv gg otoml str vg vg.pdf)
+  (libraries bos containers cmdliner csv gg otoml str vg vg.pdf)
+  (foreign_archives xlsxwriter z))
