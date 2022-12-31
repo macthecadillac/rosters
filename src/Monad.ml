@@ -47,3 +47,21 @@ module StateReader = struct
     |> fmap List.rev
   let traverse_l f l = sequence_l @@ List.map f l
 end
+
+module LazyIOResult = struct
+  type ('a, 'b) t = unit -> ('a, 'b) Result.t
+  let ( *> ) f g () = Result.Infix.(let* _ = f () in g ())
+  let ( >>= ) f g () = Result.Infix.(let* x = f () in let+ y = g x () in y)
+  let ( <$> ) fa g () = Result.Infix.(let* x = g () in Ok (fa x))
+  let ( let* ) = ( >>= )
+  let ( let+ ) a f = f <$> a
+end
+
+module LazyIOOption = struct
+  type 'a t = unit -> 'a Option.t
+  let ( *> ) f g () = Option.Infix.(let* _ = f () in g ())
+  let ( >>= ) f g () = Option.Infix.(let* x = f () in let+ y = g x () in y)
+  let ( <$> ) fa g () = Option.Infix.(let* x = g () in Some (fa x))
+  let ( let* ) = ( >>= )
+  let ( let+ ) a f = f <$> a
+end

@@ -1,0 +1,4 @@
+(executable
+  (name Deps)
+  (modules Deps Monad)
+  (libraries bos containers))

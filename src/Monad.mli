@@ -43,3 +43,17 @@ module StateReader : sig
   val sequence_l : ('s, 'r, 'a) t List.t -> ('s, 'r, 'a List.t) t
   val traverse_l : ('a -> ('s, 'r, 'b) t) -> 'a List.t -> ('s, 'r, 'b List.t) t
 end
+
+module LazyIOOption : sig
+  type 'a t = unit -> 'a Option.t
+  val ( *> ) : 'a t -> 'b t -> 'b t
+  val ( >>= ) : 'a t -> ('a -> 'b t) -> 'b t
+  val ( <$> ) : ('a -> 'b) -> 'a t -> 'b t
+end
+
+module LazyIOResult : sig
+  type ('a, 'b) t = unit -> ('a, 'b) Result.t
+  val ( *> ) : ('a, 'e) t -> ('b, 'e) t -> ('b, 'e) t
+  val ( >>= ) : ('a, 'e) t -> ('a -> ('b, 'e) t) -> ('b, 'e) t
+  val ( <$> ) : ('a -> 'b) -> ('a, 'e) t -> ('b, 'e) t
+end

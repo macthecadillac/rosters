@@ -1,20 +1,10 @@
 (rule
   (targets libxlsxwriter.a libz.a)
+  (deps ../build/Deps.exe)
   (action
     (ignore-stdout
       (progn
-        (run cp -R %{project_root}/../../lib .)
-        (chdir lib/zlib
-               (progn
-                 (run mkdir build)
-                 (run /bin/sh configure --static --prefix=./build)
-                 (run make -j 8)
-                 (run make install)))
-        (chdir lib/xlsxwriter
-               (progn
-                 (run make -I ../zlib/build/include -j 8)))
-        (run cp lib/xlsxwriter/lib/libxlsxwriter.a libxlsxwriter.a)
-        (run cp lib/zlib/build/lib/libz.a libz.a)))))
+        (run ../build/Deps.exe)))))
 
 (executable
   (name Main)
