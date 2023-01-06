@@ -47,37 +47,37 @@ let of_csv_string =
   %> List.map (Fun.uncurry new_roster)
   %> List.rev
 
-(* let to_xlsx rosters = *)
-(*   let open Monad.Reader in *)
-(*   let open Xlsx in *)
-(*   let summary_page sections = *)
-(*     let+ { lab; _ } = ask in *)
-(*     let header = *)
-(*       List.(text_cell <$> [Printf.sprintf "Lab %i" lab; "Check if complete"]) in *)
-(*     let entries = *)
-(*       List.(pure % text_cell % Printf.sprintf "section %i" % Section.to_int <$> sections) in *)
-(*     let data = header :: entries in *)
-(*     let name = "summary" in *)
-(*     Xlsx.new_sheet name data in *)
-(*   let to_sheets (section, groups) = *)
-(*     let instructions = [ *)
-(*        "Under the \"Signature\" column, leave blank if present, enter " ^ *)
-(*        "\"Absent\" if absent, describe circumstances if student left soon after quiz"; *)
-(*        "Under the \"Late\" column, enter the amount of time if they are late" ] in *)
-(*     let instrs = List.(pure % set_type Bold % set_color Red % text_cell <$> instructions) in *)
-(*     let+ { checkpoints; _ } = ask in *)
-(*     let header = *)
-(*       List.map (set_type Bold % text_cell) *)
-(*       @@ ["Signature"; "Late"; "Group"; "Student"] @ checkpoints @ ["TA Check"] in *)
-(*     let rows = *)
-(*       let open List.Infix in *)
-(*       let* group, names = IntMap.to_list groups |> List.rev in *)
-(*       let+ name = names in *)
-(*       let g = Printf.sprintf "%i" group in *)
-(*       [empty_cell; empty_cell; text_cell g; text_cell @@ Name.canonical name] in *)
-(*     let data = instrs @ [header] @ rows in *)
-(*     let name = Printf.sprintf "section %i" @@ Section.to_int section in *)
-(*     new_sheet name data in *)
-(*   let* summary = summary_page @@ List.map section rosters in *)
-(*   let+ sheets = traverse_l to_sheets rosters in *)
-(*   summary :: sheets *)
+let to_xlsx rosters =
+  let open Monad.Reader in
+  let open Xlsx in
+  let summary_page sections =
+    let+ { lab; _ } = ask in
+    let header =
+      List.(text_cell <$> [Printf.sprintf "Lab %i" lab; "Check if complete"]) in
+    let entries =
+      List.(pure % text_cell % Printf.sprintf "section %i" % Section.to_int <$> sections) in
+    let data = header :: entries in
+    let name = "summary" in
+    Xlsx.worksheet_of_rows name data in
+  let to_sheets (section, groups) =
+    let instructions = [
+       "Under the \"Signature\" column, leave blank if present, enter " ^
+       "\"Absent\" if absent, describe circumstances if student left soon after quiz";
+       "Under the \"Late\" column, enter the amount of time if they are late" ] in
+    let instrs = List.(pure % set_type Bold % set_color Red % text_cell <$> instructions) in
+    let+ { checkpoints; _ } = ask in
+    let header =
+      List.map (set_type Bold % text_cell)
+      @@ ["Signature"; "Late"; "Group"; "Student"] @ checkpoints @ ["TA Check"] in
+    let rows =
+      let open List.Infix in
+      let* group, names = IntMap.to_list groups |> List.rev in
+      let+ name = names in
+      let g = Printf.sprintf "%i" group in
+      [empty_cell; empty_cell; text_cell g; text_cell @@ Name.canonical name] in
+    let data = instrs @ [header] @ rows in
+    let name = Printf.sprintf "section %i" @@ Section.to_int section in
+    worksheet_of_rows name data in
+  let* summary = summary_page @@ List.map section rosters in
+  let+ sheets = traverse_l to_sheets rosters in
+  Xlsx.workbook_of_worksheets @@ summary :: sheets

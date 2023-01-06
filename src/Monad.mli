@@ -1,3 +1,4 @@
+(* TODO: simplify using functors *)
 (* Wrote this for fun, because why not *)
 module Reader : sig
   type ('r, 'a) t
@@ -47,8 +48,13 @@ end
 module LazyIOOption : sig
   type 'a t = unit -> 'a Option.t
   val ( *> ) : 'a t -> 'b t -> 'b t
+  val ( <*> ) : ('a -> 'b) t -> 'a t -> 'b t
   val ( >>= ) : 'a t -> ('a -> 'b t) -> 'b t
   val ( <$> ) : ('a -> 'b) -> 'a t -> 'b t
+  val ( let* ) : 'a t -> ('a -> 'b t) -> 'b t
+  val ( let+ ) : 'a t -> ('a -> 'b) -> 'b t
+  val sequence_l : 'a t List.t -> ('a List.t) t
+  val traverse_l : ('a -> 'b t) -> 'a List.t -> ('b List.t) t
 end
 
 module LazyIOResult : sig
@@ -56,4 +62,8 @@ module LazyIOResult : sig
   val ( *> ) : ('a, 'e) t -> ('b, 'e) t -> ('b, 'e) t
   val ( >>= ) : ('a, 'e) t -> ('a -> ('b, 'e) t) -> ('b, 'e) t
   val ( <$> ) : ('a -> 'b) -> ('a, 'e) t -> ('b, 'e) t
+  val ( let* ) : ('a, 'e) t -> ('a -> ('b, 'e) t) -> ('b, 'e) t
+  val ( let+ ) : ('a, 'e) t -> ('a -> 'b) -> ('b, 'e) t
+  val sequence_l : ('a, 'e) t List.t -> ('a List.t, 'e) t
+  val traverse_l : ('a -> ('b, 'e) t) -> 'a List.t -> ('b List.t, 'e) t
 end

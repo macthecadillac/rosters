@@ -168,11 +168,11 @@ let generate_rosters lab data_path output_dir =
   let* prefix = match output_dir with
     | Some s -> Fpath.of_string s >>= Bos.OS.Dir.must_exist |> to_string_err
     | None -> Bos.OS.Dir.current () |> to_string_err in
-  (* let write_xlsx rosters = *)
-  (*   let xlsx = Monad.Reader.run (Roster.to_xlsx rosters) env in *)
-  (*   Fpath.(prefix / (Format.sprintf "Lab %i Summary Attendance Sheet.xlsx" lab)) *)
-  (*   |> rename_if_exists |> to_string_err *)
-  (*   >>= Fun.flip Xlsx.write xlsx in *)
+  let write_xlsx rosters =
+    let xlsx = Monad.Reader.run (Roster.to_xlsx rosters) env in
+    Fpath.(prefix / (Format.sprintf "Lab %i Summary Attendance Sheet.xlsx" lab))
+    |> rename_if_exists |> to_string_err
+    >>= Fun.flip Xlsx.write_workbook xlsx in
   let write_pdf section_groups rosters =
     let pdfs =
       let open Monad.Reader in
@@ -198,7 +198,7 @@ let generate_rosters lab data_path output_dir =
   let section_groups =
     Option.get_or ~default:(List.map Roster.(fun x -> `S (section x), [section x]) rosters)
     @@ Option.map (StringMap.to_list %> List.map (fun (x, y) -> `N x, y)) ta_assignment_opt in
-  (* let* () = write_xlsx rosters in *)
+  let* () = write_xlsx rosters in
   write_pdf section_groups rosters
 
 let () =

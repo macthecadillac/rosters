@@ -1,4 +1,5 @@
 (lang dune 3.5)
+(using ctypes 0.1)
 (name rosters)
 (version w22)
 
@@ -14,6 +15,8 @@
  (depends
   (ocaml (= "4.14.0"))
   (dune (>= "1.5"))
+  (ctypes (= "0.20.1"))
+  (ctypes-foreign (= "0.18.0"))
   (containers (= "3.10"))
   (cmdliner (= "1.1.1"))
   (vg (= "0.9.4"))

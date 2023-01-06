@@ -51,17 +51,29 @@ end
 module LazyIOResult = struct
   type ('a, 'b) t = unit -> ('a, 'b) Result.t
   let ( *> ) f g () = Result.Infix.(let* _ = f () in g ())
+  let ( <*> ) fa g () = Result.Infix.(let* f = fa () in let+ y = g () in f y)
+  let pure x () = Ok x
   let ( >>= ) f g () = Result.Infix.(let* x = f () in let+ y = g x () in y)
   let ( <$> ) fa g () = Result.Infix.(let* x = g () in Ok (fa x))
+  let fmap = ( <$> )
   let ( let* ) = ( >>= )
   let ( let+ ) a f = f <$> a
+  let sequence_l l = List.fold_left (fun acc x -> List.cons <$> x <*> acc) (pure []) l
+    |> fmap List.rev
+  let traverse_l f l = sequence_l @@ List.map f l
 end
 
 module LazyIOOption = struct
   type 'a t = unit -> 'a Option.t
   let ( *> ) f g () = Option.Infix.(let* _ = f () in g ())
+  let ( <*> ) fa g () = Option.Infix.(let* f = fa () in let+ y = g () in f y)
+  let pure x () = Some x
   let ( >>= ) f g () = Option.Infix.(let* x = f () in let+ y = g x () in y)
   let ( <$> ) fa g () = Option.Infix.(let* x = g () in Some (fa x))
+  let fmap = ( <$> )
   let ( let* ) = ( >>= )
   let ( let+ ) a f = f <$> a
+  let sequence_l l = List.fold_left (fun acc x -> List.cons <$> x <*> acc) (pure []) l
+    |> fmap List.rev
+  let traverse_l f l = sequence_l @@ List.map f l
 end

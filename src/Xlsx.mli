@@ -1,53 +1,25 @@
-type t
+type workbook
 
-val _workbook_new : string -> t
+type worksheet
 
-val _workbook_close : t -> int
+type cell
 
-(* open Common *)
+type row = cell List.t
 
-(* type typography = Bold | Italic | Underline *)
+type typography = Normal | Bold | Italic
 
-(* type color = Red | Blue | Green | Black *)
+type color = Red | Black
 
-(* module Content : sig *)
-(*   type t = Text of String.t | Float of float | Formula of String.t | Empty *)
+val workbook_of_worksheets : worksheet List.t -> workbook
 
-(*   val to_string : t -> String.t Option.t *)
+val write_workbook : Fpath.t -> workbook -> (unit, String.t) Result.t
 
-(*   val to_float : t -> Float.t Option.t *)
-  
-(*   val pp : t printer *)
-(* end *)
+val worksheet_of_rows : String.t -> row List.t -> worksheet
 
-(* type cell *)
+val text_cell : String.t -> cell
 
-(* type sheet *)
+val empty_cell : cell
 
-(* val cell_pp : cell printer *)
+val set_color : color -> cell -> cell
 
-(* val new_cell : typography Option.t -> color -> String.t -> Content.t -> cell *)
-
-(* val new_sheet : String.t -> cell List.t List.t -> sheet *)
-
-(* val empty_cell : cell *)
-
-(* val set_color : color -> cell -> cell *)
-
-(* val set_type : typography -> cell -> cell *)
-
-(* val num_rows : sheet -> Int.t *)
-
-(* val text_cell : String.t -> cell *)
-
-(* val formula_cell : String.t -> cell *)
-
-(* val float_cell : Float.t -> cell *)
-
-(* val name : sheet -> String.t *)
-
-(* val data : sheet -> cell List.t List.t *)
-
-(* val content : cell -> Content.t *)
-
-(* val write : Fpath.t -> sheet List.t -> (Unit.t, String.t) result *)
+val set_type : typography -> cell -> cell
