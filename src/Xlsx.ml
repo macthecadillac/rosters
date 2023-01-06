@@ -43,15 +43,16 @@ end
 
 type workbook = Fpath.t -> (LibXlsxWriter.workbook, String.t) Monad.LazyIOResult.t
 
+(* TODO: should return workbook *)
 type worksheet = Fpath.t -> workbook -> (LibXlsxWriter.worksheet, String.t) Monad.LazyIOResult.t
+
+type format = unit -> LibXlsxWriter.format
 
 type cell = Unsigned.UInt32.t
          -> Unsigned.UInt16.t
-         -> LibXlsxWriter.format
-         -> Fpath.t
-         -> workbook
+         -> format
          -> worksheet
-         -> (unit, String.t) Monad.LazyIOResult.t
+         -> worksheet
 
 type row = cell List.t
 
@@ -63,58 +64,71 @@ let exit_code_to_result = function
   | 0 -> Ok (())
   | e -> Error (Format.sprintf "libxlsxwriter error code: %i" e)
 
-let workbook_of_worksheets (worksheets : worksheet list) : workbook =
-  fun path ->
-    let workbook = LibXlsxWriter.workbook_new @@ Fpath.to_string path in
-    let a = List.(worksheets <*> [path] <*> [fun _ () -> Ok workbook]) in
-    let open Monad.LazyIOResult in
-    let+ _ = Monad.LazyIOResult.sequence_l a in
-    workbook
+let workbook_of_worksheets worksheets path =
+  let workbook = LibXlsxWriter.workbook_new @@ Fpath.to_string path in
+  let worksheet_seq = List.(worksheets <*> [path] <*> [fun _ () -> Ok workbook]) in
+  let open Monad.LazyIOResult in
+  let+ _ = Monad.LazyIOResult.sequence_l worksheet_seq in
+  workbook
 
 let write_workbook path workbook =
   let open Result.Infix in
   let* wb = workbook path () in
   exit_code_to_result @@ LibXlsxWriter.workbook_close wb
 
+(* TODO: use fold to carry along a thunk that produces workbook much like what
+   we do with format instead of using explicitly mutable code *)
 let worksheet_of_rows (name : string) (data : row list) : worksheet =
   fun path workbook ->
     let open Monad.LazyIOResult in
     let* wb = workbook path in
-    let ws = LibXlsxWriter.workbook_add_worksheet wb name in
-    let default_format = LibXlsxWriter.workbook_add_format wb in
-    let+ _ = sequence_l @@
-      List.mapi (fun i l ->
+    let ws' : worksheet =
+      fun path wb ->
+        let+ wb' = wb path in
+        LibXlsxWriter.workbook_add_worksheet wb' name in
+    let format () = LibXlsxWriter.workbook_add_format wb in
+    let ws'' = List.foldi
+      (fun (ws : worksheet) i l ->
         let row = Unsigned.UInt32.of_int i in
-        sequence_l @@
-        List.mapi (fun j cell ->
+        List.foldi
+        (fun (acc : worksheet) j (cell : cell) ->
           let col = Unsigned.UInt16.of_int j in
-          cell row col default_format path workbook (fun _ _ () -> Ok ws))
+          cell row col format acc)
+        ws
         l)
+      ws'
       data in
-    ws
+    ws'' path workbook
 
-let text_cell (text : string) : cell =
-  fun row col format path (workbook : workbook) (worksheet : worksheet) ->
-    let open Monad.LazyIOResult in
-    let* ws = worksheet path workbook in
-    fun () ->
-      LibXlsxWriter.worksheet_write_string ws row col text format
-      |> exit_code_to_result
+let text_cell text : cell =
+  fun row col format worksheet ->
+    fun path workbook ->
+      let open Monad.LazyIOResult in
+      let* ws = worksheet path workbook in
+      let+ _ = fun () -> format ()
+        |> LibXlsxWriter.worksheet_write_string ws row col text
+        |> exit_code_to_result in
+      ws
 
 let empty_cell = text_cell ""
 
-let set f cell row col format path workbook worksheet () = Ok (f format)
+let set_format f cell row col format worksheet =
+  let fmt () =
+    let fmt' = format () in f fmt';
+    fmt' in
+  cell row col fmt worksheet
 
 let set_color color =
-  let c = Unsigned.UInt32.of_int @@ match color with
-  | Red -> 16711680
-  | Black -> 0 in
-  set (Fun.flip LibXlsxWriter.format_set_font_color c)
+  let c = Unsigned.UInt32.of_int @@
+    match color with
+    | Red -> 16711680
+    | Black -> 0 in
+  set_format (Fun.flip LibXlsxWriter.format_set_font_color c)
 
 let set_type = function
   | Normal -> Fun.id
-  | Bold -> set LibXlsxWriter.format_set_bold
-  | Italic -> set LibXlsxWriter.format_set_italic
+  | Bold -> set_format LibXlsxWriter.format_set_bold
+  | Italic -> set_format LibXlsxWriter.format_set_italic
 
 (* module LibXlsxWriter (F : FOREIGN) *)
 (* (1* : sig *1) *)

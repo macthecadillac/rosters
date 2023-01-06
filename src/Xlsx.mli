@@ -1,3 +1,6 @@
+(* Wrapper around libxlsxwriter. All functions are pure except for
+   `write_workbook` where the side effects are executed. Every other function
+   composes the side-effects of C code inside a LazyIO monad. *)
 type workbook
 
 type worksheet
