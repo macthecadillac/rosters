@@ -66,4 +66,6 @@ module LazyIOResult : sig
   val ( let+ ) : ('a, 'e) t -> ('a -> 'b) -> ('b, 'e) t
   val sequence_l : ('a, 'e) t List.t -> ('a List.t, 'e) t
   val traverse_l : ('a -> ('b, 'e) t) -> 'a List.t -> ('b List.t, 'e) t
+  val fold_l : ('b -> 'a -> ('b, 'e) t) -> ('b, 'e) t -> 'a List.t -> ('b, 'e) t
+  val foldi_l : ('b -> Int.t -> 'a -> ('b, 'e) t) -> ('b, 'e) t -> 'a List.t -> ('b, 'e) t
 end

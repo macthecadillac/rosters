@@ -38,10 +38,10 @@ You can specify checkpoints for the lab through the configuration file.
 # Configuration
 
 On Windows, the configuration file is located at
-`%LOCALAPPDATA%\rosters.toml`. On Unix (such as macOS)/Unix-like (such as
+`%LOCALAPPDATA%\rosters.txt`. On Unix (such as macOS)/Unix-like (such as
 Linux) systems with the environmental variable `$XDG_CONFIG_HOME` set, the
-configuration file is located at `$XDG_CONFIG_HOME/rosters.toml`, otherwise it
-is located at `$HOME/.config/rosters.toml`, where `$HOME` is your home folder.
+configuration file is located at `$XDG_CONFIG_HOME/rosters.txt`, otherwise it
+is located at `$HOME/.config/rosters.txt`, where `$HOME` is your home folder.
 
 The configuration is done via the TOML language. Here is a sample configuration
 with all the recognized keys:

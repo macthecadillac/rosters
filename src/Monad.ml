@@ -61,6 +61,8 @@ module LazyIOResult = struct
   let sequence_l l = List.fold_left (fun acc x -> List.cons <$> x <*> acc) (pure []) l
     |> fmap List.rev
   let traverse_l f l = sequence_l @@ List.map f l
+  let fold_l f acc l = List.fold_left (fun acc x -> acc >>= (fun z -> f z x)) acc l
+  let foldi_l f acc l = List.foldi (fun acc i x -> acc >>= (fun z -> f z i x)) acc l
 end
 
 module LazyIOOption = struct

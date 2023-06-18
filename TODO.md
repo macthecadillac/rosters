@@ -15,3 +15,9 @@
 - [x] Github workflows auto compile for Linux and macOS (Intel)
 - [ ] Github workflows auto compile for Windows
 - [x] code signing for macOS
+- [ ] direct OCaml binding to xlsxwriter; remove Rust dependency
+- [ ] git submodule for zlib and xlsxwriter
+- [ ] static linking for zlib
+- [ ] static linking for xlsxwriter
+- [ ] with and without musl
+- [ ] fix PDF text layer
