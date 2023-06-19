@@ -8,7 +8,7 @@ terminal.
 # Usage
 
 This program has a "multitool" interface, where the main command is followed by a
-subcommand, which takes its own arguments. The general syntax of the tool is
+subcommand which takes its own arguments. The general syntax of the tool is
 `rosters <subcommand> <arguments> [options]`. The subcommands will be described
 in the following subsections.
 
@@ -24,8 +24,9 @@ somewhere in your system. Run `rosters generate --lab 1 --input
 part with the actual path to the CSV file. If your path contains spaces, you
 will need to either escape the spaces or put the entire path in between quotes.
 This will generate randomized rosters for every section in the current working
-directory along with an xlsx file mirroring the pdfs for data entry purposes.
-You can specify checkpoints for the lab through the configuration file.
+directory along with an xlsx file mirroring the pdfs for data entry purposes. To
+skip Excel file generation, pass the `--nox` option. You can specify checkpoints
+for the lab through the configuration file.
 
 ## configure
 
@@ -37,13 +38,14 @@ You can specify checkpoints for the lab through the configuration file.
 
 # Configuration
 
-On Windows, the configuration file is located at
-`%LOCALAPPDATA%\rosters.toml`. On Unix (such as macOS)/Unix-like (such as
-Linux) systems with the environmental variable `$XDG_CONFIG_HOME` set, the
-configuration file is located at `$XDG_CONFIG_HOME/rosters.toml`, otherwise it
-is located at `$HOME/.config/rosters.toml`, where `$HOME` is your home folder.
+On Windows, the configuration file is located at `%LOCALAPPDATA%\rosters.txt`.
+On macOS, the configuration file is located at `$HOME/Library/Application
+Support/rosters.txt`. On Unix (with the exception of macOS)/Unix-like (such as
+Linux) systems with the environmental variable `$XDG_CONFIG_HOME` configured, the
+configuration file is located at `$XDG_CONFIG_HOME/rosters.txt`, otherwise it is
+located at `$HOME/.config/rosters.txt`.
 
-The configuration is done via the TOML language. Here is a sample configuration
+Configuration is done via the TOML language. Here is a sample configuration
 with all the recognized keys:
 
 ```toml
@@ -101,6 +103,9 @@ $ rosters generate --lab 1 --input /path/to/canvas.csv
 
 # generate rosters from a Canvas exported CSV file, specifying output file
 $ rosters generate --lab 2 -i /path/to/canvas.csv -o /path/to/output/directory
+
+# generate rosters from a Canvas exported CSV file, skipping Excel file generation
+$ rosters generate --lab 2 -i /path/to/canvas.csv --nox
 ```
 
 # Building from source
@@ -108,10 +113,7 @@ Compiling from source requires the following build tools:
 
 |Tool|Version requirement|
 |----|-----|
-|Rust| >= 1.64.0|
-|OCaml| =4.14.0|
-| OPAM| >= 2.0|
-|GCC or Clang|Any recent version|
+|Rust| 2021 edition |
 
-With these tools properly installed, run `opam install .` from the root
+With these tools properly installed, run `cargo install --path .` from the root
 directory of the project.
