@@ -155,18 +155,18 @@ fn main() -> Result<(), MainError> {
                 .unwrap_or(HashMap::from([(lab.into(), default_chkpt.clone())]));
             let checkpoints = lab_checkpoints.get(&lab.into())
                 .unwrap_or(&default_chkpt);
-            write_pdf(lab.into(), &checkpoints, "All", rosters.iter(), &pdf_dir)?;
             let ta_assignment = config.ta_assignment.unwrap_or(HashMap::new());
             for (ta, sections) in ta_assignment.iter() {
                 let mut rs = vec![];
                 for &section in sections.iter() {
                     let roster = rosters.iter().find(|&r| r.section == section)
                         .ok_or(format!("'{}' is a section not found in the input data \
-                                       file. check your configuration.", section))?;
+                                       file. Check your configuration/input data.", section))?;
                     rs.push(roster);
                 }
                 write_pdf(lab.into(), &checkpoints, ta, rs.into_iter(), &pdf_dir)?;
             }
+            write_pdf(lab.into(), &checkpoints, "All", rosters.iter(), &pdf_dir)?;
 
             if !nox { write_xlsx(&base_dir, lab.into(), &rosters[..])? }
         }
