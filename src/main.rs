@@ -1,6 +1,12 @@
+use arrayvec::ArrayVec;
 use clap::{Parser, Subcommand};
+use data::{Checkpoint, Config, Lab, NameList, Roster, Section};
+use directories::BaseDirs;
 use main_error::MainError;
+use pdf::{BOLD_FONT, REGULAR_FONT, Font, FontRef};
 use printpdf::PdfDocument;
+use subsetter::{subset, Profile};
+
 use std::collections::{HashMap, HashSet};
 use std::env;
 use std::fs;
@@ -11,11 +17,6 @@ mod data;
 mod error;
 mod pdf;
 mod xlsx;
-
-use data::{Checkpoint, Config, Lab, NameList, Roster, Section};
-use directories::BaseDirs;
-use pdf::{BOLD_FONT, REGULAR_FONT, Font, FontRef};
-use subsetter::{subset, Profile};
 
 const EXAMPLE_CONFIG: &'static str = std::include_str!("../example_config.toml");
 
@@ -123,7 +124,7 @@ fn main() -> Result<(), MainError> {
             edit_config(dirs.config_dir())?;
         },
         Subcmd::Reset => {
-            fs::remove_file(dirs.config_dir().join("rosters.txt"))?;
+            let _ = fs::remove_file(dirs.config_dir().join("rosters.txt"));
         },
         Subcmd::Generate { input, output, lab, nox } => {
             let file = fs::read_to_string(dirs.config_dir()
@@ -135,7 +136,7 @@ fn main() -> Result<(), MainError> {
             let records: Vec<_> = csv.deserialize()
                 .filter_map(|x| x.ok())
                 .collect();
-            let name_lists = NameList::from_records(&records);
+            let name_lists = NameList::from_records(&records)?;
             let rosters: Vec<Roster> = name_lists.into_iter().map(Into::into).collect();
 
             let base_dir = output.unwrap_or(env::current_dir()?);
@@ -150,7 +151,8 @@ fn main() -> Result<(), MainError> {
                 env::current_dir()?
             };
 
-            let default_chkpt = vec!["1".into(), "2".into(), "3".into(), "4".into()];
+            let default_checkpoints = ["1".into(), "2".into(), "3".into(), "4".into()];
+            let default_chkpt = ArrayVec::try_from(default_checkpoints.as_slice()).unwrap();
             let lab_checkpoints = config.checkpoints
                 .unwrap_or(HashMap::from([(lab.into(), default_chkpt.clone())]));
             let checkpoints = lab_checkpoints.get(&lab.into())

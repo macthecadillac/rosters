@@ -331,7 +331,7 @@ impl Page {
         }
         let text = format!("{}", group);
         let x = group_col.anchor_center(&text, Font::Bold, size);
-        let y = y0 + (self.table_height - y0 - line_height) * 0.5;
+        let y = y0 - Length::from_pt(2.) + (self.table_height - y0 - line_height) * 0.5;
         self.text.push(Text {
             str: text, size, font: Font::Bold,
             anchor: Vector::from_ul(x, y)

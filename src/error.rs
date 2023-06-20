@@ -13,5 +13,7 @@ pub enum Error {
     #[display(fmt = "encountered error during IO operation: {}", _0)]
     IOError(std::io::Error),
     #[display(fmt = "xlsx error: {}", _0)]
-    XlsxError(rust_xlsxwriter::XlsxError)
+    XlsxError(rust_xlsxwriter::XlsxError),
+    #[display(fmt = "section size of over 42 is not supported")]
+    SectionSizeError(arrayvec::CapacityError)
 }

@@ -82,6 +82,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "arrayvec"
+version = "0.7.4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "96d30a06541fbafbc7f82ed10c06164cfbd2c401138f6addd8404629c4b16711"
+dependencies = [
+ "serde",
+]
+
+[[package]]
 name = "autocfg"
 version = "1.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -149,9 +158,9 @@ dependencies = [
 
 [[package]]
 name = "clap"
-version = "4.3.4"
+version = "4.3.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "80672091db20273a15cf9fdd4e47ed43b5091ec9841bf4c6145c9dfbbcae09ed"
+checksum = "2686c4115cb0810d9a984776e197823d08ec94f176549a89a9efded477c456dc"
 dependencies = [
  "clap_builder",
  "clap_derive",
@@ -160,9 +169,9 @@ dependencies = [
 
 [[package]]
 name = "clap_builder"
-version = "4.3.4"
+version = "4.3.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c1458a1df40e1e2afebb7ab60ce55c1fa8f431146205aa5f4887e0b111c27636"
+checksum = "2e53afce1efce6ed1f633cf0e57612fe51db54a1ee4fd8f8503d078fe02d69ae"
 dependencies = [
  "anstream",
  "anstyle",
@@ -640,14 +649,17 @@ version = "0.19.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "706de7e2214113d63a8238d1910463cfce781129a6f263d13fdb09ff64355ba4"
 dependencies = [
- "ttf-parser 0.19.0",
+ "ttf-parser 0.19.1",
 ]
 
 [[package]]
 name = "pom"
-version = "3.2.0"
+version = "3.3.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "07e2192780e9f8e282049ff9bffcaa28171e1cb0844f49ed5374e518ae6024ec"
+checksum = "5c2d73a5fe10d458e77534589512104e5aa8ac480aa9ac30b74563274235cce4"
+dependencies = [
+ "bstr",
+]
 
 [[package]]
 name = "ppv-lite86"
@@ -766,8 +778,9 @@ checksum = "436b050e76ed2903236f032a59761c1eb99e1b0aead2c257922771dab1fc8c78"
 
 [[package]]
 name = "rosters"
-version = "2.0.0"
+version = "1.99.0"
 dependencies = [
+ "arrayvec",
  "clap",
  "csv",
  "derive_more",
@@ -1103,9 +1116,9 @@ checksum = "7ae2f58a822f08abdaf668897e96a5656fe72f5a9ce66422423e8849384872e6"
 
 [[package]]
 name = "ttf-parser"
-version = "0.19.0"
+version = "0.19.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "44dcf002ae3b32cd25400d6df128c5babec3927cd1eb7ce813cfff20eb6c3746"
+checksum = "a464a4b34948a5f67fddd2b823c62d9d92e44be75058b99939eae6c5b6960b33"
 
 [[package]]
 name = "unicode-ident"

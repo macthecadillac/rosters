@@ -1,3 +1,4 @@
+use arrayvec::ArrayVec;
 use derive_more::{AsRef, Display, From, Into};
 use itertools::Itertools;
 use rand::seq::SliceRandom;
@@ -7,19 +8,21 @@ use serde::de::Error;
 use std::collections::HashMap;
 use std::fmt::{Display, Formatter};
 
+use crate::error;
+
 #[derive(Deserialize, Debug)]
 pub struct Config {
     #[serde(rename = "ta-assignment")]
-    pub ta_assignment: Option<HashMap<String, Vec<Section>>>,
-    pub checkpoints: Option<HashMap<Lab, Vec<Checkpoint>>>,
+    pub ta_assignment: Option<HashMap<String, ArrayVec<Section, 8>>>,
+    pub checkpoints: Option<HashMap<Lab, ArrayVec<Checkpoint, 8>>>,
 }
 
-#[derive(Clone, Debug, Deserialize)]
+#[derive(Clone, Debug, Deserialize, Eq, Ord, PartialEq, PartialOrd)]
 pub struct Record {
-    #[serde(rename(deserialize = "Student"))]
-    student: Name,
     #[serde(rename(deserialize = "Section"))]
-    section: Section
+    section: Section,
+    #[serde(rename(deserialize = "Student"))]
+    student: Name
 }
 
 #[derive(Clone, Copy, Debug, Deserialize, Display, Eq, From, Into, Hash, Ord, PartialEq, PartialOrd)]
@@ -66,7 +69,7 @@ impl TryFrom<String> for Lab {
 #[as_ref(forward)]
 pub struct Checkpoint(String);
 
-#[derive(Clone, Debug, Deserialize)]
+#[derive(Clone, Debug, Deserialize, Eq, Ord, PartialEq, PartialOrd)]
 #[serde(try_from = "String")]
 struct Name {
     first: String,
@@ -105,7 +108,7 @@ impl<'a> Display for NameRef<'a> {
 #[derive(Clone, Debug)]
 pub struct Roster<'a> {
     pub section: Section,
-    pub groups: Vec<Vec<NameRef<'a>>>
+    pub groups: ArrayVec<ArrayVec<NameRef<'a>, 7>, 6>
 }
 
 impl<'a> From<NameList<'a>> for Roster<'a> {
@@ -113,7 +116,8 @@ impl<'a> From<NameList<'a>> for Roster<'a> {
         let NameList { names, section } = list;
         let n = names.len();
         let ngroups = n / 5 + if n % 5 == 0 { 0 } else { 1 };
-        let mut groups = vec![vec![]; ngroups];
+        let mut groups = ArrayVec::new();
+        for _ in 0..ngroups { groups.push(ArrayVec::new()); }
         for (n, &name) in (0..ngroups).cycle().zip(names.iter()) {
             groups[n].push(name);
         }
@@ -123,25 +127,21 @@ impl<'a> From<NameList<'a>> for Roster<'a> {
 
 pub struct NameList<'a> {
     section: Section,
-    names: Vec<NameRef<'a>>
+    names: ArrayVec<NameRef<'a>, 42>
 }
 
 impl<'a> NameList<'a> {
-    pub fn from_records(records: &[Record]) -> Vec<NameList> {
+    pub fn from_records(records: &[Record]) -> Result<Vec<NameList>, error::Error> {
         let mut recs: Vec<_> = records.iter().collect();
         recs.sort_by_key(|&record| record.section);
-        recs.iter()
-            .group_by(|record| record.section)
-            .into_iter()
-            .map(|(section, names)| {
-                let mut l = NameList {
-                    section,
-                    names: names.map(|&r| r.student.as_ref()).collect()
-                };
-                l.shuffle();
-                l
-            })
-            .collect()
+        let mut lists = vec![];
+        for (section, list) in recs.iter().group_by(|record| record.section).into_iter() {
+            let names: Vec<_> = list.map(|&r| r.student.as_ref()).collect();
+            let mut l = NameList { section, names: names.as_slice().try_into()? };
+            l.shuffle();
+            lists.push(l)
+        }
+        Ok(lists)
     }
 }
 
