@@ -4,9 +4,9 @@ use derive_more::{Display, Error, From};
 pub enum Error {
     #[display(fmt = "name not formatted as 'last, first'")]
     ParseNameError,
-    #[display(fmt = "cannot parse lab number from configuration file")]
+    #[display(fmt = "cannot parse lab number from key")]
     UnknownLabPrefix,
-    #[display(fmt = "cannot parse lab number from configuration file")]
+    #[display(fmt = "cannot parse lab number from key")]
     UnknownLabNumber(std::num::ParseIntError),
     #[display(fmt = "could not open configuration file: {}", _0)]
     OpenFileError(opener::OpenError),

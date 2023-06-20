@@ -61,7 +61,7 @@ fn edit_config(config_dir: &std::path::Path) -> Result<(), error::Error> {
     Ok(())
 }
 
-fn write_pdf<'a>(lab: Lab, checkpoints: &[Checkpoint], ta: &str,
+fn write_pdf<'a>(lab: Lab, checkpoints: &[Checkpoint], section_tag: &str,
                  rosters: impl Iterator<Item=&'a Roster<'a>>, pdf_dir: &PathBuf)
     -> Result<(), String> {
     let mut pages = vec![];
@@ -85,7 +85,7 @@ fn write_pdf<'a>(lab: Lab, checkpoints: &[Checkpoint], ta: &str,
         page.render(&mut doc, font_ref);
     }
     let pdf_output = pdf_dir
-        .join(format!("Lab {} Blank Rosters ({} Sections).pdf", lab, ta));
+        .join(format!("Lab {} Blank Rosters ({} Sections).pdf", lab, section_tag));
     let file = fs::File::create(pdf_output)
         .map_err(|_| "error encountered when creating PDF document")?;
     doc.save(&mut BufWriter::new(file))
@@ -102,8 +102,15 @@ fn write_xlsx<'a>(base_dir: &PathBuf, lab: Lab,
         roster.write(&mut workbook)?;
     }
     let fname = format!("Lab {} Summary Attendance Sheet.xlsx", lab);
-    let xlsx_output = base_dir.join(fname);
-    workbook.data.save(xlsx_output)?;
+    let mut path = base_dir.join(fname);
+    if path.exists() {
+        for i in 1.. {
+            let fname = format!("Lab {} Summary Attendance Sheet({}).xlsx", lab, i);
+            path = base_dir.join(fname);
+            if !path.exists() { break }
+        }
+    }
+    workbook.data.save(path)?;
     Ok(())
 }
 

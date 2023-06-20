@@ -24,6 +24,7 @@ impl<'a> Roster<'a> {
         let sheet = workbook.data.add_worksheet();
         sheet.set_name(format!("section {}", self.section))?;
         let red_text = Format::new().set_font_color(Color::Red).set_bold();
+        let num_fmt = Format::new().set_num_format("0");
         sheet.write_string_with_format(0, 0, "\
             Under the \"Signature\" column, leave blank if present, enter \
             \"Absent\" if absent, describe circumstances if student left \
@@ -40,7 +41,7 @@ impl<'a> Roster<'a> {
         row += 1;
         for (group, students) in self.groups.iter().enumerate() {
             for student in students.iter() {
-                sheet.write_string(row, 2, format!("{}", group + 1))?;
+                sheet.write_number_with_format(row, 2, group as f64 + 1., &num_fmt)?;
                 sheet.write_string(row, 3, format!("{}", student))?;
                 row += 1;
             }
