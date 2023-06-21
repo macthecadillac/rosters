@@ -3,11 +3,10 @@ use clap::{Parser, Subcommand};
 use data::{Checkpoint, Config, Lab, NameList, Roster, Section};
 use directories::BaseDirs;
 use main_error::MainError;
-use pdf::{BOLD_FONT, REGULAR_FONT, Font, FontRef};
+use pdf::{Font, FontRef};
 use printpdf::PdfDocument;
-use subsetter::{subset, Profile};
 
-use std::collections::{HashMap, HashSet};
+use std::collections::HashMap;
 use std::env;
 use std::fs;
 use std::io::BufWriter;
@@ -65,26 +64,17 @@ fn edit_config(config_dir: &std::path::Path) -> Result<(), error::Error> {
 fn write_pdf<'a>(lab: Lab, checkpoints: &[Checkpoint], section_tag: &str,
                  rosters: impl Iterator<Item=&'a Roster<'a>>, pdf_dir: &PathBuf)
     -> Result<(), String> {
-    let mut pages = vec![];
-    let mut regular_glyphs = HashSet::new();
-    let mut bold_glyphs = HashSet::new();
+    let mut pdf = pdf::Document::default();
     for roster in rosters {
-        let page = roster.build_page(lab.into(), &checkpoints);
-        regular_glyphs.extend(page.glyphs(Font::Regular).into_iter().map(|g| g.0));
-        bold_glyphs.extend(page.glyphs(Font::Bold).into_iter().map(|g| g.0));
-        pages.push(page);
+        pdf.add_page(roster, lab.into(), &checkpoints);
     }
-    let regular_glyphs: Vec<_> = regular_glyphs.into_iter().collect();
-    let regular_font = subset(REGULAR_FONT, 0, Profile::pdf(&regular_glyphs)).unwrap();
-    let bold_glyphs: Vec<_> = bold_glyphs.into_iter().collect();
-    let bold_font = subset(BOLD_FONT, 0, Profile::pdf(&bold_glyphs)).unwrap();
+    let regular_font = pdf.font_subset(Font::Regular);
+    let bold_font = pdf.font_subset(Font::Bold);
     let mut doc = PdfDocument::empty("Rosters");
     let regular = doc.add_external_font(&regular_font[..]).unwrap();
     let bold = doc.add_external_font(&bold_font[..]).unwrap();
     let font_ref = FontRef { regular: &regular, bold: &bold };
-    for page in pages.iter() {
-        page.render(&mut doc, font_ref);
-    }
+    pdf.render(&mut doc, font_ref);
     let pdf_output = pdf_dir
         .join(format!("Lab {} Blank Rosters ({} Sections).pdf", lab, section_tag));
     let file = fs::File::create(pdf_output)

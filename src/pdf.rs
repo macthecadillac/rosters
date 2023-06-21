@@ -2,6 +2,7 @@ use derive_more::{From, Add, AddAssign, Div, Mul, Sub, SubAssign, Sum};
 use owned_ttf_parser::GlyphId;
 use printpdf::{BlendMode, Color, Cmyk, IndirectFontRef, LineCapStyle, Mm,
                PdfDocumentReference, PdfLayerReference, SeperableBlendMode};
+use subsetter::{subset, Profile};
 
 use std::collections::HashSet;
 
@@ -34,7 +35,6 @@ impl Width {
     fn width(self, text: &str, font: Font, size: f64) -> Length {
         match self {
             Width::Auto => {
-                // FIXME: should fail if glyph not ascii
                 let face = owned_ttf_parser::Face::parse(font.into(), 0).unwrap();
                 let length = text.chars()
                     .filter_map(|c| face.glyph_index(c))
@@ -368,17 +368,41 @@ impl Page {
     }
 }
 
-impl<'a> Roster<'a> {
-    pub fn build_page(&self, lab: Lab, checkpoints: &[Checkpoint]) -> Page {
+#[derive(Default)]
+pub struct Document {
+    pages: Vec<Page>,
+    regular_glyphs: HashSet<u16>,
+    bold_glyphs: HashSet<u16>,
+}
+
+impl Document {
+    pub fn add_page(&mut self, roster: &Roster, lab: Lab, checkpoints: &[Checkpoint]) {
         let mut page = Page::default();
         page.font_size = 11.;
-        page.ngroups = self.groups.len();
-        page.title = format!("Section {}", self.section);
-        page.add_header(lab, self.section, checkpoints);
-        for (group, students) in self.groups.iter().enumerate() {
+        page.ngroups = roster.groups.len();
+        page.title = format!("Section {}", roster.section);
+        page.add_header(lab, roster.section, checkpoints);
+        for (group, students) in roster.groups.iter().enumerate() {
             page.add_group(group + 1, students);
         }
         page.add_vertical_lines();
-        page
+        self.regular_glyphs.extend(page.glyphs(Font::Regular).into_iter().map(|g| g.0));
+        self.bold_glyphs.extend(page.glyphs(Font::Bold).into_iter().map(|g| g.0));
+        self.pages.push(page)
+    }
+
+    pub fn font_subset(&self, font: Font) -> Vec<u8> {
+        let glyphs = match font {
+            Font::Regular => &self.regular_glyphs,
+            Font::Bold => &self.bold_glyphs
+        };
+        let glyph_ids: Vec<_> = glyphs.iter().cloned().collect();
+        subset(font.into(), 0, Profile::pdf(&glyph_ids)).unwrap()
+    }
+
+    pub fn render(&self, pdf_document: &mut PdfDocumentReference, font_ref: FontRef) {
+        for page in self.pages.iter() {
+            page.render(pdf_document, font_ref);
+        }
     }
 }
