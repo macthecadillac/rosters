@@ -7,7 +7,7 @@
 # Configuration is entirely optional. `rosters` will run
 # with default values if a given configuration key is not found.
 
-# This file is written in the TOML format. Lines prefixed with the \"#\" sign
+# This file is written in the TOML format. Lines prefixed with the "#" sign
 # are comments and will be ignored.
 
 [ta-assignment]
@@ -28,7 +28,7 @@ Ricky = [4, 14, 24, 34]
 Lyndon = [37, 39]
 
 [checkpoints]
-# LHS must be in the form of \"lab\" followed by an integer.
+# LHS must be in the form of "lab" followed by an integer.
 # RHS is a list of strings. Entries must be enclosed in single or double quotes
 # separted by commas. The generator only supports up to 8 checkpoints per lab.
 lab1 = ['A', 'B5', 'C1', 'C2']
