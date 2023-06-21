@@ -111,41 +111,27 @@ pub struct Roster<'a> {
     pub groups: ArrayVec<ArrayVec<NameRef<'a>, 7>, 6>
 }
 
-impl<'a> From<NameList<'a>> for Roster<'a> {
-    fn from(list: NameList<'a>) -> Self {
-        let NameList { names, section } = list;
-        let n = names.len();
-        let ngroups = n / 5 + if n % 5 == 0 { 0 } else { 1 };
-        let mut groups = ArrayVec::new();
-        for _ in 0..ngroups { groups.push(ArrayVec::new()); }
-        for (n, &name) in (0..ngroups).cycle().zip(names.iter()) {
-            groups[n].push(name);
-        }
-        Roster { section, groups }
-    }
-}
-
-pub struct NameList<'a> {
-    section: Section,
-    names: ArrayVec<NameRef<'a>, 42>
-}
-
-impl<'a> NameList<'a> {
-    pub fn from_records(records: &[Record]) -> Result<Vec<NameList>, error::Error> {
+impl<'a> Roster<'a> {
+    pub fn from_records(records: &'a [Record]) -> Result<Vec<Roster<'a>>, error::Error> {
+        let mut rng = rand::thread_rng();
         let mut recs: Vec<_> = records.iter().collect();
         recs.sort_by_key(|&record| record.section);
-        let mut lists = vec![];
-        for (section, list) in recs.iter().group_by(|record| record.section).into_iter() {
-            let names: Vec<_> = list.map(|&r| r.student.as_ref()).collect();
-            let mut l = NameList { section, names: names.as_slice().try_into()? };
-            l.shuffle();
-            lists.push(l)
-        }
-        Ok(lists)
-    }
-
-    fn shuffle(&mut self) {
-        let mut rng = rand::thread_rng();
-        self.names.shuffle(&mut rng);
+        let rosters = recs.iter()
+            .group_by(|record| record.section)
+            .into_iter()
+            .map(|(section, list)| {
+                let mut names: Vec<_> = list.map(|&r| r.student.as_ref()).collect();
+                names.shuffle(&mut rng);
+                let n = names.len();
+                let ngroups = n / 5 + if n % 5 == 0 { 0 } else { 1 };
+                let mut groups = ArrayVec::new();
+                for _ in 0..ngroups { groups.push(ArrayVec::new()); }
+                for (n, &name) in (0..ngroups).cycle().zip(names.iter()) {
+                    groups[n].push(name);
+                }
+                Roster { section, groups }
+            })
+            .collect();
+        Ok(rosters)
     }
 }

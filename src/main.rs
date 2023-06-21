@@ -1,6 +1,6 @@
 use arrayvec::ArrayVec;
 use clap::{Parser, Subcommand};
-use data::{Checkpoint, Config, Lab, NameList, Roster};
+use data::{Checkpoint, Config, Lab, Roster};
 use directories::BaseDirs;
 use main_error::MainError;
 use pdf::{Font, FontRef};
@@ -126,8 +126,7 @@ fn main() -> Result<(), MainError> {
             let records: Vec<_> = csv.deserialize()
                 .filter_map(|x| x.ok())
                 .collect();
-            let name_lists = NameList::from_records(&records)?;
-            let rosters: Vec<Roster> = name_lists.into_iter().map(Into::into).collect();
+            let rosters = Roster::from_records(&records)?;
 
             let base_dir = output.unwrap_or(env::current_dir()?);
             if !base_dir.exists() { Err("output directory does not exist")? }
@@ -145,14 +144,13 @@ fn main() -> Result<(), MainError> {
                 .unwrap_or(&default_chkpt);
             if let Some(ta_assignment) = config.ta_assignment {
                 for (ta, sections) in ta_assignment.iter() {
-                    let mut rs = vec![];
-                    for &section in sections.iter() {
-                        let roster = rosters.iter().find(|&r| r.section == section)
-                            .ok_or(format!("'{}' is a section not found in the input data \
-                                           file. Check your configuration/input data.", section))?;
-                        rs.push(roster);
-                    }
-                    let data_stream = DataStream::Many { rosters: rs.into_iter(), tag: ta };
+                    let rosters = sections.iter()
+                        .map(|&section| rosters.iter().find(|&r| r.section == section)
+                            .ok_or(format!("Section {} does not exist in the input data. \
+                                           Check your configuration/input data.", section)))
+                        .collect::<Result<Vec<_>, _>>()?
+                        .into_iter();
+                    let data_stream = DataStream::Many { rosters, tag: ta };
                     write_pdf(lab.into(), &checkpoints, data_stream, &pdf_dir)?;
                 }
             } else {
