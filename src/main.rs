@@ -66,15 +66,15 @@ fn write_pdf<'a>(lab: Lab, checkpoints: &[Checkpoint], section_tag: &str,
     -> Result<(), String> {
     let mut pdf = pdf::Document::default();
     for roster in rosters {
-        pdf.add_page(roster, lab.into(), &checkpoints);
+        pdf.add_page(roster, lab.into(), &checkpoints).map_err(|e| format!("{}", e))?;
     }
-    let regular_font = pdf.font_subset(Font::Regular);
-    let bold_font = pdf.font_subset(Font::Bold);
+    let regular_font = pdf.font_subset(Font::Regular).map_err(|e| format!("{}", e))?;
+    let bold_font = pdf.font_subset(Font::Bold).map_err(|e| format!("{}", e))?;
     let mut doc = PdfDocument::empty("Rosters");
-    let regular = doc.add_external_font(&regular_font[..]).unwrap();
-    let bold = doc.add_external_font(&bold_font[..]).unwrap();
+    let regular = doc.add_external_font(&regular_font[..]).map_err(|_| "cannot load font")?;
+    let bold = doc.add_external_font(&bold_font[..]).map_err(|_| "cannot load font")?;
     let font_ref = FontRef { regular: &regular, bold: &bold };
-    pdf.render(&mut doc, font_ref);
+    pdf.render(&mut doc, font_ref).map_err(|e| format!("{}", e))?;
     let pdf_output = pdf_dir
         .join(format!("Lab {} Blank Rosters ({} Sections).pdf", lab, section_tag));
     let file = fs::File::create(pdf_output)
@@ -117,8 +117,7 @@ fn main() -> Result<(), MainError> {
             let _ = fs::remove_file(dirs.config_dir().join("rosters.txt"));
         },
         Subcmd::Generate { input, output, lab, nox } => {
-            let file = fs::read_to_string(dirs.config_dir()
-                .join("rosters.txt"))
+            let file = fs::read_to_string(dirs.config_dir().join("rosters.txt"))
                 .unwrap_or("".into());
             let config: Config = toml::from_str(&file)?;
             if !input.exists() { Err("input file does not exist")? }
@@ -142,7 +141,8 @@ fn main() -> Result<(), MainError> {
             };
 
             let default_checkpoints = ["1".into(), "2".into(), "3".into(), "4".into()];
-            let default_chkpt = ArrayVec::try_from(default_checkpoints.as_slice()).unwrap();
+            let default_chkpt = ArrayVec::try_from(&default_checkpoints[..])
+                .map_err(|_| "impossible branch")?;
             let lab_checkpoints = config.checkpoints
                 .unwrap_or(HashMap::from([(lab.into(), default_chkpt.clone())]));
             let checkpoints = lab_checkpoints.get(&lab.into())

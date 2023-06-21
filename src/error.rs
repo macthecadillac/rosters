@@ -15,5 +15,9 @@ pub enum Error {
     #[display(fmt = "xlsx error: {}", _0)]
     XlsxError(rust_xlsxwriter::XlsxError),
     #[display(fmt = "section size of over 42 is not supported")]
-    SectionSizeError(arrayvec::CapacityError)
+    SectionSizeError(arrayvec::CapacityError),
+    #[display(fmt = "font parsing error")]
+    FontParsingError(owned_ttf_parser::FaceParsingError),
+    #[display(fmt = "font subset error")]
+    SubsetError(subsetter::Error)
 }

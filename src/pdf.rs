@@ -7,6 +7,7 @@ use subsetter::{subset, Profile};
 use std::collections::HashSet;
 
 use crate::data::{Checkpoint, Lab, NameRef, Roster, Section};
+use crate::error::Error;
 
 const REGULAR_FONT: &'static [u8] = std::include_bytes!("../fonts/Carlito-Regular.ttf");
 const BOLD_FONT: &'static [u8] = std::include_bytes!("../fonts/Carlito-Bold.ttf");
@@ -32,10 +33,10 @@ impl Into<&'static [u8]> for Font {
 enum Width { Auto, Manual(Length) }
 
 impl Width {
-    fn width(self, text: &str, font: Font, size: f64) -> Length {
+    fn width(self, text: &str, font: Font, size: f64) -> Result<Length, Error> {
         match self {
             Width::Auto => {
-                let face = owned_ttf_parser::Face::parse(font.into(), 0).unwrap();
+                let face = owned_ttf_parser::Face::parse(font.into(), 0)?;
                 let length = text.chars()
                     .filter_map(|c| face.glyph_index(c))
                     .filter_map(|glyph| Some(
@@ -43,9 +44,9 @@ impl Width {
                         face.glyph_hor_side_bearing(glyph)?
                     ))
                     .sum::<i16>();
-                Length::from_pt(size) * length as f64 / 2048.
+                Ok(Length::from_pt(size) * length as f64 / 2048.)
             },
-            Width::Manual(l) => l
+            Width::Manual(l) => Ok(l)
         }
     }
 }
@@ -112,9 +113,9 @@ impl Line {
     }
 }
 
-fn line_height(size: f64) -> Length {
-    let face = owned_ttf_parser::Face::parse(REGULAR_FONT, 0).unwrap();
-    Length::from_pt(size) * face.height() as f64 / 2048.
+fn line_height(size: f64) -> Result<Length, Error> {
+    let face = owned_ttf_parser::Face::parse(REGULAR_FONT, 0)?;
+    Ok(Length::from_pt(size) * face.height() as f64 / 2048.)
 }
 
 #[derive(Add, AddAssign, Clone, Copy, Debug, From, Mul, Default, Div, Sub, SubAssign, Sum)]
@@ -154,10 +155,12 @@ struct Text {
 }
 
 impl Text {
-    fn render(&self, layer_ref: &PdfLayerReference, font_ref: FontRef) {
-        let text_height = line_height(self.size).into();
+    fn render(&self, layer_ref: &PdfLayerReference, font_ref: FontRef)
+        -> Result<(), Error> {
+        let text_height = line_height(self.size)?.into();
         layer_ref.use_text(&self.str, self.size, self.anchor.x(),
                            self.anchor.y() - text_height, font_ref.pick(self.font));
+        Ok(())
     }
 }
 
@@ -165,9 +168,9 @@ impl Text {
 struct Column { left: Length, right: Length }
 
 impl Column {
-    fn anchor_center(self, text: &str, font: Font, size: f64) -> Length {
-        let width = Width::Auto.width(text, font, size);
-        self.left + (self.right - self.left - width) * 0.5
+    fn anchor_center(self, text: &str, font: Font, size: f64) -> Result<Length, Error> {
+        let width = Width::Auto.width(text, font, size)?;
+        Ok(self.left + (self.right - self.left - width) * 0.5)
     }
 
     fn anchor_left(self) -> Length {
@@ -188,33 +191,35 @@ struct Page {
 }
 
 impl Page {
-    fn render(&self, pdf_document: &mut PdfDocumentReference, font_ref: FontRef) {
+    fn render(&self, pdf_document: &mut PdfDocumentReference, font_ref: FontRef)
+        -> Result<(), Error> {
         let (page, layer) = pdf_document.add_page(PAGEWIDTH.into(),
                                                   PAGEHEIGHT.into(),
                                                   &self.title);
         let layer_ref = pdf_document.get_page(page).get_layer(layer);
         for item in self.text.iter() {
-            item.render(&layer_ref, font_ref);
+            item.render(&layer_ref, font_ref)?;
         }
         for line in self.lines.iter() {
             line.render(&layer_ref);
         }
+        Ok(())
     }
 
-    fn glyphs(&self, font: Font) -> HashSet<GlyphId> {
-        let face = owned_ttf_parser::Face::parse(font.into(), 0).unwrap();
-        self.text.iter()
+    fn glyphs(&self, font: Font) -> Result<HashSet<GlyphId>, Error> {
+        let face = owned_ttf_parser::Face::parse(font.into(), 0)?;
+        Ok(self.text.iter()
             .filter(|text| text.font == font)
             .flat_map(|text| text.str.chars())
             .filter_map(|c| face.glyph_index(c))
-            .collect()
+            .collect())
     }
 
     fn add_header(&mut self, lab: Lab, section: Section,
-                      checkpoints: &[Checkpoint]) {
+                      checkpoints: &[Checkpoint]) -> Result<(), Error> {
         let text_width = PAGEWIDTH - MARGINS * 2.;
         let size = self.font_size;
-        let line_height = line_height(size);
+        let line_height = line_height(size)?;
         let x0 = Length::default();
         let mut y0 = Length::default();
         self.lines.push(Line {
@@ -229,7 +234,7 @@ impl Page {
         self.text.push(Text { str: format!("Lab {}", lab), size, font: Font::Bold,
                               anchor: anchor1 });
         let section_str = format!("Section {}", section);
-        let section_str_width = Width::Auto.width(&section_str, Font::Bold, size);
+        let section_str_width = Width::Auto.width(&section_str, Font::Bold, size)?;
         let x = (text_width - section_str_width - Length::from_mm(2.)) * 0.5;
         self.text.push(Text { str: section_str, size, font: Font::Bold,
                               anchor: Vector::from_ul(x, y0) });
@@ -254,11 +259,17 @@ impl Page {
             .map(|x| (Width::Auto, x.as_ref()))
             .chain([(Width::Auto, "Signed")].into_iter())
             .collect();
-        let lwidths: Vec<_> = left_header_text.iter()
-            .map(|(w, x)| w.width(x, Font::Bold, size) + Length::from_pt(12.))
+        let lwidths: Vec<Length> = left_header_text.iter()
+            .map(|(w, x)| w.width(x, Font::Bold, size))
+            .collect::<Result<Vec<_>, _>>()?
+            .into_iter()
+            .map(|w| w + Length::from_pt(12.))
             .collect();
         let rwidths: Vec<_> = right_header_text.iter()
-            .map(|(w, x)| w.width(x, Font::Bold, size) + Length::from_pt(12.))
+            .map(|(w, x)| w.width(x, Font::Bold, size))
+            .collect::<Result<Vec<_>, _>>()?
+            .into_iter()
+            .map(|w| w + Length::from_pt(12.))
             .collect();
         let center_width = text_width
             - lwidths.iter().chain(rwidths.iter()).cloned().sum::<Length>();
@@ -276,7 +287,7 @@ impl Page {
                                 .chain(["Student"].into_iter())
                                 .chain(right_header_text.into_iter().map(|(_, s)| s))
                                 .zip(self.columns.iter()) {
-            let x = column.anchor_center(text, Font::Bold, size);
+            let x = column.anchor_center(text, Font::Bold, size)?;
             self.text.push(Text { str: text.into(), size, font: Font::Bold,
                 anchor: Vector::from_ul(x, y0) });
         };
@@ -288,12 +299,13 @@ impl Page {
             thickness: Length::from_pt(2.)
         });
         self.table_height = y0 + Length::from_pt(3.);
+        Ok(())
     }
 
-    fn add_group(&mut self, group: usize, students: &[NameRef]) {
+    fn add_group(&mut self, group: usize, students: &[NameRef]) -> Result<(), Error> {
         let y0 = self.table_height;
         let size = self.font_size;
-        let line_height = line_height(size);
+        let line_height = line_height(size)?;
         let group_col = self.columns[2];
         let student_col = self.columns[3];
         let group_size = students.len();
@@ -330,7 +342,7 @@ impl Page {
             }
         }
         let text = format!("{}", group);
-        let x = group_col.anchor_center(&text, Font::Bold, size);
+        let x = group_col.anchor_center(&text, Font::Bold, size)?;
         let y = y0 - Length::from_pt(2.) + (self.table_height - y0 - line_height) * 0.5;
         self.text.push(Text {
             str: text, size, font: Font::Bold,
@@ -341,6 +353,7 @@ impl Page {
         } else if group == self.ngroups {
             self.table_height += Length::from_pt(2.)
         };
+        Ok(())
     }
 
     fn add_vertical_lines(&mut self) {
@@ -376,33 +389,38 @@ pub struct Document {
 }
 
 impl Document {
-    pub fn add_page(&mut self, roster: &Roster, lab: Lab, checkpoints: &[Checkpoint]) {
+    pub fn add_page(&mut self, roster: &Roster, lab: Lab, checkpoints: &[Checkpoint])
+        -> Result<(), Error> {
         let mut page = Page::default();
         page.font_size = 11.;
         page.ngroups = roster.groups.len();
         page.title = format!("Section {}", roster.section);
-        page.add_header(lab, roster.section, checkpoints);
+        page.add_header(lab, roster.section, checkpoints)?;
         for (group, students) in roster.groups.iter().enumerate() {
-            page.add_group(group + 1, students);
+            page.add_group(group + 1, students)?;
         }
         page.add_vertical_lines();
-        self.regular_glyphs.extend(page.glyphs(Font::Regular).into_iter().map(|g| g.0));
-        self.bold_glyphs.extend(page.glyphs(Font::Bold).into_iter().map(|g| g.0));
-        self.pages.push(page)
+        self.regular_glyphs.extend(page.glyphs(Font::Regular)?.into_iter().map(|g| g.0));
+        self.bold_glyphs.extend(page.glyphs(Font::Bold)?.into_iter().map(|g| g.0));
+        self.pages.push(page);
+        Ok(())
     }
 
-    pub fn font_subset(&self, font: Font) -> Vec<u8> {
+    pub fn font_subset(&self, font: Font) -> Result<Vec<u8>, Error> {
         let glyphs = match font {
             Font::Regular => &self.regular_glyphs,
             Font::Bold => &self.bold_glyphs
         };
         let glyph_ids: Vec<_> = glyphs.iter().cloned().collect();
-        subset(font.into(), 0, Profile::pdf(&glyph_ids)).unwrap()
+        let font = subset(font.into(), 0, Profile::pdf(&glyph_ids))?;
+        Ok(font)
     }
 
-    pub fn render(&self, pdf_document: &mut PdfDocumentReference, font_ref: FontRef) {
+    pub fn render(&self, pdf_document: &mut PdfDocumentReference, font_ref: FontRef)
+        -> Result<(), Error> {
         for page in self.pages.iter() {
-            page.render(pdf_document, font_ref);
+            page.render(pdf_document, font_ref)?;
         }
+        Ok(())
     }
 }
