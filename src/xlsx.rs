@@ -1,4 +1,5 @@
-use crate::Roster;
+use crate::data::{Lab, Roster, Section};
+use crate::error::Error;
 
 use rust_xlsxwriter::{Color, Format};
 
@@ -8,7 +9,8 @@ pub struct Workbook {
 }
 
 impl Workbook {
-    pub fn initialize(&mut self, lab: crate::Lab, sections: &[crate::Section]) -> Result<(), crate::error::Error> {
+    pub fn initialize(&mut self, lab: Lab, sections: &[Section])
+        -> Result<(), crate::error::Error> {
         let sheet = self.data.add_worksheet();
         sheet.write_string(0, 0, format!("Lab {}", lab))?;
         sheet.write_string(0, 1, "Check if complete")?;
@@ -17,12 +19,10 @@ impl Workbook {
         }
         Ok(())
     }
-}
 
-impl<'a> Roster<'a> {
-    pub fn write(&self, workbook: &mut Workbook) -> Result<(), crate::error::Error> {
-        let sheet = workbook.data.add_worksheet();
-        sheet.set_name(format!("section {}", self.section))?;
+    pub fn add_sheet(&mut self, roster: &Roster) -> Result<(), Error> {
+        let sheet = self.data.add_worksheet();
+        sheet.set_name(format!("section {}", roster.section))?;
         let red_text = Format::new().set_font_color(Color::Red).set_bold();
         let num_fmt = Format::new().set_num_format("0");
         sheet.write_string_with_format(0, 0, "\
@@ -39,7 +39,7 @@ impl<'a> Roster<'a> {
             sheet.write_string(row, i as u16, s)?;
         }
         row += 1;
-        for (group, students) in self.groups.iter().enumerate() {
+        for (group, students) in roster.groups.iter().enumerate() {
             for student in students.iter() {
                 sheet.write_number_with_format(row, 2, group as f64 + 1., &num_fmt)?;
                 sheet.write_string(row, 3, format!("{}", student))?;

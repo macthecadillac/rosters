@@ -143,9 +143,7 @@ impl<'a> NameList<'a> {
         }
         Ok(lists)
     }
-}
 
-impl<'a> NameList<'a> {
     fn shuffle(&mut self) {
         let mut rng = rand::thread_rng();
         self.names.shuffle(&mut rng);

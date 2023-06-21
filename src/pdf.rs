@@ -8,12 +8,12 @@ use std::collections::HashSet;
 
 use crate::data::{Checkpoint, Lab, NameRef, Roster, Section};
 
-pub const REGULAR_FONT: &'static [u8] = std::include_bytes!("../fonts/Carlito-Regular.ttf");
-pub const BOLD_FONT: &'static [u8] = std::include_bytes!("../fonts/Carlito-Bold.ttf");
+const REGULAR_FONT: &'static [u8] = std::include_bytes!("../fonts/Carlito-Regular.ttf");
+const BOLD_FONT: &'static [u8] = std::include_bytes!("../fonts/Carlito-Bold.ttf");
 
-pub const PAGEWIDTH: Length = Length(215.9);   // 8.5 in
-pub const PAGEHEIGHT: Length = Length(279.4);  // 11 in
-pub const MARGINS: Length = Length(20.32);     // 0.85 in
+const PAGEWIDTH: Length = Length(215.9);   // 8.5 in
+const PAGEHEIGHT: Length = Length(279.4);  // 11 in
+const MARGINS: Length = Length(20.32);     // 0.85 in
 
 #[derive(Copy, Clone, Eq, PartialEq)]
 #[allow(dead_code)]
@@ -176,7 +176,7 @@ impl Column {
 }
 
 #[derive(Default)]
-pub struct Page {
+struct Page {
     columns: Vec<Column>,
     text: Vec<Text>,
     lines: Vec<Line>,
@@ -188,7 +188,7 @@ pub struct Page {
 }
 
 impl Page {
-    pub fn render(&self, pdf_document: &mut PdfDocumentReference, font_ref: FontRef) {
+    fn render(&self, pdf_document: &mut PdfDocumentReference, font_ref: FontRef) {
         let (page, layer) = pdf_document.add_page(PAGEWIDTH.into(),
                                                   PAGEHEIGHT.into(),
                                                   &self.title);
@@ -201,7 +201,7 @@ impl Page {
         }
     }
 
-    pub fn glyphs(&self, font: Font) -> HashSet<GlyphId> {
+    fn glyphs(&self, font: Font) -> HashSet<GlyphId> {
         let face = owned_ttf_parser::Face::parse(font.into(), 0).unwrap();
         self.text.iter()
             .filter(|text| text.font == font)
@@ -210,7 +210,7 @@ impl Page {
             .collect()
     }
 
-    pub fn add_header(&mut self, lab: Lab, section: Section,
+    fn add_header(&mut self, lab: Lab, section: Section,
                       checkpoints: &[Checkpoint]) {
         let text_width = PAGEWIDTH - MARGINS * 2.;
         let size = self.font_size;
@@ -290,7 +290,7 @@ impl Page {
         self.table_height = y0 + Length::from_pt(3.);
     }
 
-    pub fn add_group(&mut self, group: usize, students: &[NameRef]) {
+    fn add_group(&mut self, group: usize, students: &[NameRef]) {
         let y0 = self.table_height;
         let size = self.font_size;
         let line_height = line_height(size);
@@ -343,7 +343,7 @@ impl Page {
         };
     }
 
-    pub fn add_vertical_lines(&mut self) {
+    fn add_vertical_lines(&mut self) {
         for column in self.columns.iter().skip(1) {
             let x = column.left;
             self.lines.push(Line {

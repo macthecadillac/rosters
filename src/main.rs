@@ -1,6 +1,6 @@
 use arrayvec::ArrayVec;
 use clap::{Parser, Subcommand};
-use data::{Checkpoint, Config, Lab, NameList, Roster, Section};
+use data::{Checkpoint, Config, Lab, NameList, Roster};
 use directories::BaseDirs;
 use main_error::MainError;
 use pdf::{Font, FontRef};
@@ -90,7 +90,7 @@ fn write_xlsx<'a>(base_dir: &PathBuf, lab: Lab,
     let sections: Vec<_> = rosters.iter().map(|x| x.section).collect();
     workbook.initialize(lab.into(), &sections)?;
     for roster in rosters.iter() {
-        roster.write(&mut workbook)?;
+        workbook.add_sheet(roster)?;
     }
     let fname = format!("Lab {} Summary Attendance Sheet.xlsx", lab);
     let mut path = base_dir.join(fname);
