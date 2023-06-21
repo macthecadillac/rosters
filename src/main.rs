@@ -21,8 +21,12 @@ const EXAMPLE_CONFIG: &'static str = std::include_str!("../example_config.toml")
 
 #[derive(Debug, Subcommand)]
 enum Subcmd {
-    /// open configuration file in text editor
-    Configure,
+    /// generate starter configuration
+    Config {
+        /// output path
+        #[arg(short, long)]
+        output: std::path::PathBuf
+    },
     /// generate rosters
     Generate {
         /// path to canvas exported csv file
@@ -36,10 +40,11 @@ enum Subcmd {
         lab: usize,
         /// skip Excel file generation
         #[arg(long)]
-        nox: bool
+        nox: bool,
+        /// run with supplied configuration
+        #[arg(short, long)]
+        config: Option<std::path::PathBuf>
     },
-    /// remove configuration
-    Reset
 }
 
 #[derive(Parser, Debug)]
@@ -49,25 +54,28 @@ struct Args {
     command: Subcmd,
 }
 
-fn edit_config(config_dir: &std::path::Path) -> Result<(), error::Error> {
-    let config_path = config_dir.join("rosters.txt");
-    if config_path.exists() {
-        opener::open(&config_path)?;
-    } else {
-        fs::create_dir_all(config_dir)?;
-        fs::write(&config_path, EXAMPLE_CONFIG)?;
-        opener::open(&config_path)?;
-    };
-    Ok(())
+enum DataStream<'a, T> where T: Iterator<Item=&'a Roster<'a>> {
+    Many { rosters: T, tag: &'a str },
+    One { roster: &'a Roster<'a> }
 }
 
-fn write_pdf<'a>(lab: Lab, checkpoints: &[Checkpoint], section_tag: &str,
-                 rosters: impl Iterator<Item=&'a Roster<'a>>, pdf_dir: &PathBuf)
-    -> Result<(), error::Error> {
+fn write_pdf<'a, T>(lab: Lab, checkpoints: &[Checkpoint], data: DataStream<'a, T>,
+                    pdf_dir: &PathBuf)
+    -> Result<(), error::Error>
+    where T: Iterator<Item=&'a Roster<'a>> {
     let mut pdf = pdf::Document::default();
-    for roster in rosters {
-        pdf.add_page(roster, lab.into(), &checkpoints)?;
-    }
+    let fname = match data {
+        DataStream::Many { rosters, tag } => {
+            for roster in rosters {
+                pdf.add_page(roster, lab.into(), &checkpoints)?;
+            }
+            format!("Lab {} Blank Rosters ({} Sections).pdf", lab, tag)
+        },
+        DataStream::One { roster } => {
+            pdf.add_page(roster, lab.into(), &checkpoints)?;
+            format!("Lab {} Blank Rosters (Section {}).pdf", lab, roster.section)
+        }
+    };
     let regular_font = pdf.font_subset(Font::Regular)?;
     let bold_font = pdf.font_subset(Font::Bold)?;
     let mut doc = PdfDocument::empty("Rosters");
@@ -75,8 +83,7 @@ fn write_pdf<'a>(lab: Lab, checkpoints: &[Checkpoint], section_tag: &str,
     let bold = doc.add_external_font(&bold_font[..])?;
     let font_ref = FontRef { regular: &regular, bold: &bold };
     pdf.render(&mut doc, font_ref)?;
-    let pdf_output = pdf_dir
-        .join(format!("Lab {} Blank Rosters ({} Sections).pdf", lab, section_tag));
+    let pdf_output = pdf_dir.join(fname);
     let file = fs::File::create(pdf_output)?;
     doc.save(&mut BufWriter::new(file))?;
     Ok(())
@@ -108,14 +115,10 @@ fn main() -> Result<(), MainError> {
     let args = Args::parse();
 
     match args.command {
-        Subcmd::Configure => {
-            edit_config(dirs.config_dir())?;
-        },
-        Subcmd::Reset => {
-            let _ = fs::remove_file(dirs.config_dir().join("rosters.txt"));
-        },
-        Subcmd::Generate { input, output, lab, nox } => {
-            let file = fs::read_to_string(dirs.config_dir().join("rosters.txt"))
+        Subcmd::Config { output } => fs::write(&output, EXAMPLE_CONFIG)?,
+        Subcmd::Generate { input, output, lab, nox, config } => {
+            let config_path = config.unwrap_or(dirs.config_dir().join("rosters.toml"));
+            let file = fs::read_to_string(config_path)
                 .unwrap_or("".into());
             let config: Config = toml::from_str(&file)?;
             if !input.exists() { Err("input file does not exist")? }
@@ -130,13 +133,8 @@ fn main() -> Result<(), MainError> {
             if !base_dir.exists() { Err("output directory does not exist")? }
             if !base_dir.is_dir() { Err("output path needs to be a directory")? }
 
-            let pdf_dir = if config.checkpoints.is_some() {
-                let dir = base_dir.join("Blank Rosters");
-                if !dir.exists() { std::fs::create_dir_all(&dir)? };
-                dir
-            } else {
-                env::current_dir()?
-            };
+            let pdf_dir = base_dir.join("Blank Rosters");
+            if !pdf_dir.exists() { std::fs::create_dir_all(&pdf_dir)? };
 
             let default_checkpoints = ["1".into(), "2".into(), "3".into(), "4".into()];
             let default_chkpt = ArrayVec::try_from(&default_checkpoints[..])
@@ -145,18 +143,26 @@ fn main() -> Result<(), MainError> {
                 .unwrap_or(HashMap::from([(lab.into(), default_chkpt.clone())]));
             let checkpoints = lab_checkpoints.get(&lab.into())
                 .unwrap_or(&default_chkpt);
-            let ta_assignment = config.ta_assignment.unwrap_or(HashMap::new());
-            for (ta, sections) in ta_assignment.iter() {
-                let mut rs = vec![];
-                for &section in sections.iter() {
-                    let roster = rosters.iter().find(|&r| r.section == section)
-                        .ok_or(format!("'{}' is a section not found in the input data \
-                                       file. Check your configuration/input data.", section))?;
-                    rs.push(roster);
+            if let Some(ta_assignment) = config.ta_assignment {
+                for (ta, sections) in ta_assignment.iter() {
+                    let mut rs = vec![];
+                    for &section in sections.iter() {
+                        let roster = rosters.iter().find(|&r| r.section == section)
+                            .ok_or(format!("'{}' is a section not found in the input data \
+                                           file. Check your configuration/input data.", section))?;
+                        rs.push(roster);
+                    }
+                    let data_stream = DataStream::Many { rosters: rs.into_iter(), tag: ta };
+                    write_pdf(lab.into(), &checkpoints, data_stream, &pdf_dir)?;
                 }
-                write_pdf(lab.into(), &checkpoints, ta, rs.into_iter(), &pdf_dir)?;
+            } else {
+                for roster in rosters.iter() {
+                    let data_stream: DataStream<std::iter::Empty<_>> = DataStream::One { roster };
+                    write_pdf(lab.into(), &checkpoints, data_stream, &pdf_dir)?;
+                }
             }
-            write_pdf(lab.into(), &checkpoints, "All", rosters.iter(), &pdf_dir)?;
+            let data_stream = DataStream::Many { rosters: rosters.iter(), tag: "All" };
+            write_pdf(lab.into(), &checkpoints, data_stream, &pdf_dir)?;
 
             if !nox { write_xlsx(&base_dir, lab.into(), &rosters[..])? }
         }

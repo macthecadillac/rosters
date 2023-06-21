@@ -8,8 +8,6 @@ pub enum Error {
     UnknownLabPrefix,
     #[display(fmt = "cannot parse lab number from key")]
     UnknownLabNumber(std::num::ParseIntError),
-    #[display(fmt = "could not open configuration file: {}", _0)]
-    OpenFileError(opener::OpenError),
     PdfError(printpdf::Error),
     IOError(std::io::Error),
     XlsxError(rust_xlsxwriter::XlsxError),

@@ -2,13 +2,18 @@
 
 `rosters` has no external dependency aside from a functioning OS. Simply
 download the appropriate executable for your platform from the [release
-page](https://github.com/macthecadillac/rosters/releases) and run in the
+page](https://github.com/macthecadillac/rosters/releases) and execute in a
 terminal.
+
+While configuration is entirely optional, you are strongly encouraged to create
+one. The program can group sections by TAs if configured to do so. This will
+significantly reduce the number of PDFs generated, especially for on-sequence
+labs.
 
 # Usage
 
 This program has a "multitool" interface, where the main command is followed by a
-subcommand which takes its own arguments. The general syntax of the tool is
+subcommand which takes its own arguments. The general syntax is
 `rosters <subcommand> <arguments> [options]`. The subcommands will be described
 in the following subsections.
 
@@ -17,46 +22,55 @@ a full list of available options.
 
 ## generate
     
-This subcommand generates random rosters for every section in the lab. Go to
-Canvas course > Grades > Actions > Export Entire Gradebook. Save the CSV file
-somewhere in your system. Run `rosters generate --lab 1 --input
+This subcommand generates random rosters for every section in a lab. Go to
+Canvas course > Grades > Actions > Export Entire Gradebook and save the CSV file
+somewhere on your system. Run `rosters generate --lab 1 --input
 /path/to/data.csv`, replacing '1' with the lab number of the week and the last
 part with the actual path to the CSV file. If your path contains spaces, you
 will need to either escape the spaces or put the entire path in between quotes.
 This will generate randomized rosters for every section in the current working
 directory along with an xlsx file mirroring the pdfs for data entry purposes. To
-skip Excel file generation, pass the `--nox` option. You can specify checkpoints
+skip Excel file generation, pass the `--nox` flag. You can specify checkpoints
 for the lab through the configuration file.
 
-## configure
+## config
 
-`rosters configure` opens the configuration file in the default text editor.
-
-## reset
-
-`rosters reset` removes the configuration file (if any).
+`rosters config --output /parth/to/file` generates a starter configuration file.
 
 # Configuration
 
-On Windows, the configuration file is located at `%LOCALAPPDATA%\rosters.txt`.
-On macOS, the configuration file is located at `$HOME/Library/Application
-Support/rosters.txt`. On Unix (with the exception of macOS)/Unix-like (such as
-Linux) systems with the environmental variable `$XDG_CONFIG_HOME` configured, the
-configuration file is located at `$XDG_CONFIG_HOME/rosters.txt`, otherwise it is
-located at `$HOME/.config/rosters.txt`.
+A configuration file can be supplied at run time through the `--config` option,
+otherwise the program will look for a configuration file at a standard location
+on your platform. If no configuration is found, the program will run with
+default parameters.
 
-Configuration is done via the TOML language. Here is a sample configuration
-with all the recognized keys:
+On Windows, the configuration file is located at `%LOCALAPPDATA%\rosters.toml`.
+On macOS, the configuration file is located at `$HOME/Library/Application
+Support/rosters.toml`. On Unix (with the exception of macOS)/Unix-like (such as
+Linux) systems with the environmental variable `$XDG_CONFIG_HOME` configured,
+the configuration file is located at `$XDG_CONFIG_HOME/rosters.toml`, otherwise
+it is located at `$HOME/.config/rosters.toml`. TOML files are plain text files
+and they can be edited with any text editor (except perhaps for Microsoft
+Notepad, which is notorious for creating files with encoding issues).
+
+## Migration from version `w22`
+
+The configuration file format has not changed. However, the file name (and
+specifically on macOS, the location) have been changed. If you wish to reuse the
+configuration from `w22`, you need to rename the file from `rosters.txt` to
+`rosters.toml`. On macOS, you also need to move the file from `$HOME/.config` to
+`$HOME/Library/Application Support`, which is a more standard location for
+application configurations.
+
+## Sample Configuration
+
+Here is a sample configuration with all the recognized keys:
 
 ```toml
-# This is an example configuration to help you get started. This file is
-# already written to the correct location, so once you are done editing it,
-# simply save and close your text editor. You can always access this file by
-# running `rosters configure`. To remove the configuration, simply run
-# `rosters reset`.
+# This is an example configuration to help you get started.
 
 # Configuration is entirely optional. `rosters` will run
-# with default values if a given configuration key is not found.
+# with default values if a given section is not found.
 
 # This file is written in the TOML format. Lines prefixed with the "#" sign
 # are comments and will be ignored.
@@ -78,6 +92,8 @@ Jerry = [6, 8, 16, 26]
 Ricky = [4, 14, 24, 34]
 Lyndon = [37, 39]
 
+# Comment out/delete section if you don't want to customize the checkpoint
+# columns. These example values are for 1CL.
 [checkpoints]
 # LHS must be in the form of "lab" followed by an integer.
 # RHS is a list of strings. Entries must be enclosed in single or double quotes
@@ -96,11 +112,14 @@ lab9 = ['A3', 'B2', 'B9', 'C4']
 # Examples
 
 ```sh
-# open configuration
-$ rosters configure
+#  generate a starter configuration file
+$ rosters config --output /parth/to/file
 
 # generate rosters from a Canvas exported CSV file
 $ rosters generate --lab 1 --input /path/to/canvas.csv
+
+# generate rosters from a Canvas exported CSV file with the supplied configuration file
+$ rosters generate --lab 1 --input /path/to/canvas.csv --config /path/to/config.toml
 
 # generate rosters from a Canvas exported CSV file, specifying output file
 $ rosters generate --lab 2 -i /path/to/canvas.csv -o /path/to/output/directory
@@ -114,7 +133,7 @@ Compiling from source requires the following build tools:
 
 |Tool|Version requirement|
 |----|-----|
-|Rust| 2021 edition |
+|Rust| >= 1.70 |
 
 With these tools properly installed, run `cargo install --path .` from the root
 directory of the project.

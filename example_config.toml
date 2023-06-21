@@ -1,11 +1,7 @@
-# This is an example configuration to help you get started. This file is
-# already written to the correct location, so once you are done editing it,
-# simply save and close your text editor. You can always access this file by
-# running `rosters configure`. To remove the configuration, simply run
-# `rosters reset`.
+# This is an example configuration to help you get started.
 
-# Configuration is entirely optional. `rosters` will run
-# with default values if a given configuration key is not found.
+# Configuration is entirely optional. `rosters` will run with default values if
+# a given section is not found.
 
 # This file is written in the TOML format. Lines prefixed with the "#" sign
 # are comments and will be ignored.
@@ -27,6 +23,8 @@ Jerry = [6, 8, 16, 26]
 Ricky = [4, 14, 24, 34]
 Lyndon = [37, 39]
 
+# Comment out/delete section if you don't want to customize the checkpoint
+# columns. These example values are for 1CL.
 [checkpoints]
 # LHS must be in the form of "lab" followed by an integer.
 # RHS is a list of strings. Entries must be enclosed in single or double quotes
