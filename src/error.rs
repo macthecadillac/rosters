@@ -10,9 +10,8 @@ pub enum Error {
     UnknownLabNumber(std::num::ParseIntError),
     #[display(fmt = "could not open configuration file: {}", _0)]
     OpenFileError(opener::OpenError),
-    #[display(fmt = "encountered error during IO operation: {}", _0)]
+    PdfError(printpdf::Error),
     IOError(std::io::Error),
-    #[display(fmt = "xlsx error: {}", _0)]
     XlsxError(rust_xlsxwriter::XlsxError),
     #[display(fmt = "section size of over 42 is not supported")]
     SectionSizeError(arrayvec::CapacityError),

@@ -78,7 +78,8 @@ struct Line {
     anchor: Vector,
     length: Length,
     direction: Direction,
-    thickness: Length
+    thickness: Length,
+    cap: LineCapStyle
 }
 
 impl Line {
@@ -106,7 +107,7 @@ impl Line {
         };
         let fill_color = Color::Cmyk(Cmyk::new(0.0, 0.0, 0.0, 0.0, None));
         layer_ref.set_blend_mode(BlendMode::Seperable(SeperableBlendMode::Normal));
-        layer_ref.set_line_cap_style(LineCapStyle::ProjectingSquare);
+        layer_ref.set_line_cap_style(self.cap);
         layer_ref.set_fill_color(fill_color);
         layer_ref.set_outline_thickness(self.thickness.to_pt());
         layer_ref.add_shape(line);
@@ -118,7 +119,7 @@ fn line_height(size: f64) -> Result<Length, Error> {
     Ok(Length::from_pt(size) * face.height() as f64 / 2048.)
 }
 
-#[derive(Add, AddAssign, Clone, Copy, Debug, From, Mul, Default, Div, Sub, SubAssign, Sum)]
+#[derive(Add, AddAssign, Clone, Copy, Debug, From, Mul, Default, Div, PartialEq, PartialOrd, Sub, SubAssign, Sum)]
 pub struct Length(f64);
 
 impl Into<Mm> for Length {
@@ -173,8 +174,8 @@ impl Column {
         Ok(self.left + (self.right - self.left - width) * 0.5)
     }
 
-    fn anchor_left(self) -> Length {
-        self.left + Length::from_pt(6.)
+    fn anchor_left(self, size: f64) -> Length {
+        self.left + Length::from_pt(size / 11. * 6.)
     }
 }
 
@@ -220,38 +221,45 @@ impl Page {
         let text_width = PAGEWIDTH - MARGINS * 2.;
         let size = self.font_size;
         let line_height = line_height(size)?;
+        let side_padding = Length::from_pt(6.);
+        let top_padding = Length::from_pt(size / 22.);
+        let bottom_padding = Length::from_pt(size / 11. * 4.5);
         let x0 = Length::default();
         let mut y0 = Length::default();
+        let thickness = Length::from_pt(2.);
         self.lines.push(Line {
             anchor: Vector::from_ul(x0, y0),
             length: text_width,
             direction: Direction::Horizontal,
-            thickness: Length::from_pt(2.)
+            cap: LineCapStyle::Butt,
+            thickness
         });
-        // line width of 2pt
-        y0 += Length::from_pt(3.);
-        let anchor1 = Vector::from_ul(x0 + Length::from_pt(6.), y0);
+        y0 += thickness + top_padding;
+        let anchor1 = Vector::from_ul(x0 + side_padding, y0);
         self.text.push(Text { str: format!("Lab {}", lab), size, font: Font::Bold,
                               anchor: anchor1 });
         let section_str = format!("Section {}", section);
         let section_str_width = Width::Auto.width(&section_str, Font::Bold, size)?;
-        let x = (text_width - section_str_width - Length::from_mm(2.)) * 0.5;
+        let x = (text_width - section_str_width) * 0.5;
         self.text.push(Text { str: section_str, size, font: Font::Bold,
                               anchor: Vector::from_ul(x, y0) });
         self.text.push(Text { str: "Date:".into(), size, font: Font::Bold,
                               anchor: Vector::from_ul(Length::from_in(4.8), y0) });
-        y0 += line_height + Length::from_pt(4.);
+        y0 += line_height + bottom_padding;
 
+        let thickness = Length::from_pt(2.);
         self.lines.push(Line {
             anchor: Vector::from_ul(x0, y0),
             length: text_width,
             direction: Direction::Horizontal,
-            thickness: Length::from_pt(2.)
+            cap: LineCapStyle::Butt,
+            thickness
         });
-        y0 += Length::from_pt(2.);
+        y0 += thickness;
         self.table_start = y0;
-        y0 += Length::from_pt(1.);
+        y0 += top_padding;
 
+        let min_col_width = Length::from_mm(9.);
         let left_header_text = [(Width::Manual(Length::from_mm(20.)), "Signature"),
                                 (Width::Auto, "Late"),
                                 (Width::Auto, "Group")];
@@ -263,13 +271,14 @@ impl Page {
             .map(|(w, x)| w.width(x, Font::Bold, size))
             .collect::<Result<Vec<_>, _>>()?
             .into_iter()
-            .map(|w| w + Length::from_pt(12.))
+            .map(|w| w + side_padding * 2.)
             .collect();
         let rwidths: Vec<_> = right_header_text.iter()
             .map(|(w, x)| w.width(x, Font::Bold, size))
             .collect::<Result<Vec<_>, _>>()?
             .into_iter()
-            .map(|w| w + Length::from_pt(12.))
+            .map(|w| w + side_padding * 2.)
+            .map(|w| if w < min_col_width { min_col_width } else { w })
             .collect();
         let center_width = text_width
             - lwidths.iter().chain(rwidths.iter()).cloned().sum::<Length>();
@@ -291,14 +300,16 @@ impl Page {
             self.text.push(Text { str: text.into(), size, font: Font::Bold,
                 anchor: Vector::from_ul(x, y0) });
         };
-        y0 += line_height + Length::from_pt(4.);
+        y0 += line_height + bottom_padding;
+        let thickness = Length::from_pt(2.);
         self.lines.push(Line {
             anchor: Vector::from_ul(x0, y0),
             length: text_width,
             direction: Direction::Horizontal,
-            thickness: Length::from_pt(2.)
+            cap: LineCapStyle::Butt,
+            thickness
         });
-        self.table_height = y0 + Length::from_pt(3.);
+        self.table_height = y0 + thickness;
         Ok(())
     }
 
@@ -306,35 +317,41 @@ impl Page {
         let y0 = self.table_height;
         let size = self.font_size;
         let line_height = line_height(size)?;
+        let top_padding = Length::from_pt(0.);
+        let bottom_padding = Length::from_pt(size / 11. * 5.);
         let group_col = self.columns[2];
         let student_col = self.columns[3];
         let group_size = students.len();
         for (n, student) in students.iter().enumerate() {
             let text = format!("{}", student);
-            let x = student_col.anchor_left();
+            let x = student_col.anchor_left(size);
             self.text.push(Text { str: text, size, font: Font::Regular,
                 anchor: Vector::from_ul(x, self.table_height) });
-            self.table_height += line_height + Length::from_pt(4.);
+            self.table_height += line_height + bottom_padding;
             let bottom_line = Line {
                 anchor: Vector::from_ul(Length::default(), self.table_height),
                 length: PAGEWIDTH - MARGINS * 2.,
                 direction: Direction::Horizontal,
+                cap: LineCapStyle::Butt,
                 thickness: Length::from_pt(1.3)
             };
             if n < group_size - 1 {
+                let thickness = Length::from_pt(1.);
                 self.lines.push(Line {
                     anchor: Vector::from_ul(Length::default(), self.table_height),
                     length: group_col.left,
                     direction: Direction::Horizontal,
-                    thickness: Length::from_pt(1.)
+                    cap: LineCapStyle::Butt,
+                    thickness
                 });
                 self.lines.push(Line {
                     anchor: Vector::from_ul(student_col.left, self.table_height),
                     length: PAGEWIDTH - MARGINS * 2. - student_col.left,
                     direction: Direction::Horizontal,
-                    thickness: Length::from_pt(1.)
+                    cap: LineCapStyle::Butt,
+                    thickness
                 });
-                self.table_height += Length::from_pt(2.);
+                self.table_height += thickness + top_padding;
             } else if group < self.ngroups {
                 self.lines.push(bottom_line);
             } else {
@@ -363,6 +380,7 @@ impl Page {
                 anchor: Vector::from_ul(x - Length::from_pt(0.5), self.table_start),
                 length: self.table_height - self.table_start,
                 direction: Direction::Vertical,
+                cap: LineCapStyle::ProjectingSquare,
                 thickness: Length::from_pt(1.)
             });
         }
@@ -370,12 +388,14 @@ impl Page {
             anchor: Vector::from_ul(Length::default() - Length::from_pt(1.), Length::default()),
             length: self.table_height,
             direction: Direction::Vertical,
+            cap: LineCapStyle::ProjectingSquare,
             thickness: Length::from_pt(2.)
         });
         self.lines.push(Line {
-            anchor: Vector::from_ul(PAGEWIDTH - MARGINS * 2., Length::default()),
+            anchor: Vector::from_ul(PAGEWIDTH - MARGINS * 2. - Length::from_pt(1.), Length::default()),
             length: self.table_height,
             direction: Direction::Vertical,
+            cap: LineCapStyle::ProjectingSquare,
             thickness: Length::from_pt(2.)
         });
     }

@@ -63,24 +63,22 @@ fn edit_config(config_dir: &std::path::Path) -> Result<(), error::Error> {
 
 fn write_pdf<'a>(lab: Lab, checkpoints: &[Checkpoint], section_tag: &str,
                  rosters: impl Iterator<Item=&'a Roster<'a>>, pdf_dir: &PathBuf)
-    -> Result<(), String> {
+    -> Result<(), error::Error> {
     let mut pdf = pdf::Document::default();
     for roster in rosters {
-        pdf.add_page(roster, lab.into(), &checkpoints).map_err(|e| format!("{}", e))?;
+        pdf.add_page(roster, lab.into(), &checkpoints)?;
     }
-    let regular_font = pdf.font_subset(Font::Regular).map_err(|e| format!("{}", e))?;
-    let bold_font = pdf.font_subset(Font::Bold).map_err(|e| format!("{}", e))?;
+    let regular_font = pdf.font_subset(Font::Regular)?;
+    let bold_font = pdf.font_subset(Font::Bold)?;
     let mut doc = PdfDocument::empty("Rosters");
-    let regular = doc.add_external_font(&regular_font[..]).map_err(|_| "cannot load font")?;
-    let bold = doc.add_external_font(&bold_font[..]).map_err(|_| "cannot load font")?;
+    let regular = doc.add_external_font(&regular_font[..])?;
+    let bold = doc.add_external_font(&bold_font[..])?;
     let font_ref = FontRef { regular: &regular, bold: &bold };
-    pdf.render(&mut doc, font_ref).map_err(|e| format!("{}", e))?;
+    pdf.render(&mut doc, font_ref)?;
     let pdf_output = pdf_dir
         .join(format!("Lab {} Blank Rosters ({} Sections).pdf", lab, section_tag));
-    let file = fs::File::create(pdf_output)
-        .map_err(|_| "error encountered when creating PDF document")?;
-    doc.save(&mut BufWriter::new(file))
-       .map_err(|_| "error encountered when writing PDF document to file")?;
+    let file = fs::File::create(pdf_output)?;
+    doc.save(&mut BufWriter::new(file))?;
     Ok(())
 }
 
