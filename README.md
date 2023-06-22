@@ -6,7 +6,7 @@ page](https://github.com/macthecadillac/rosters/releases) and execute in a
 terminal.
 
 While configuration is entirely optional, you are strongly encouraged to create
-one. The program can group sections by TAs if configured to do so. This will
+one. The program can group sections by TAs if configured to do so. This can
 significantly reduce the number of PDFs generated, especially for on-sequence
 labs.
 
@@ -45,22 +45,23 @@ on your platform. If no configuration is found, the program will run with
 default parameters.
 
 On Windows, the configuration file is located at `%LOCALAPPDATA%\rosters.toml`.
-On macOS, the configuration file is located at `$HOME/Library/Application
+On macOS, the configuration file is located at `~/Library/Application
 Support/rosters.toml`. On Unix (with the exception of macOS)/Unix-like (such as
 Linux) systems with the environmental variable `$XDG_CONFIG_HOME` configured,
 the configuration file is located at `$XDG_CONFIG_HOME/rosters.toml`, otherwise
-it is located at `$HOME/.config/rosters.toml`. TOML files are plain text files
-and they can be edited with any text editor (except perhaps for Microsoft
-Notepad, which is notorious for creating files with encoding issues).
+it is located at `~/.config/rosters.toml`. TOML files are plain text files and
+they can be edited with any text editor (except perhaps for Microsoft Notepad,
+which is notorious for creating files with encoding issues).
 
 ## Migration from version `w22`
 
 The configuration file format has not changed. However, the file name (and
 specifically on macOS, the location) have been changed. If you wish to reuse the
 configuration from `w22`, you need to rename the file from `rosters.txt` to
-`rosters.toml`. On macOS, you also need to move the file from `$HOME/.config` to
-`$HOME/Library/Application Support`, which is a more standard location for
-application configurations.
+`rosters.toml`. On macOS, you also need to move the file from `~/.config` to
+`~/Library/Application Support`, which is a more standard location for
+application configuration. This location can be accessed from Finder through the
+"Go to Folder" menu item or the key binding ⇧ ⌘ G.
 
 ## Sample Configuration
 

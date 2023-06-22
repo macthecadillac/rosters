@@ -21,29 +21,32 @@ const EXAMPLE_CONFIG: &'static str = std::include_str!("../example_config.toml")
 
 #[derive(Debug, Subcommand)]
 enum Subcmd {
-    /// generate starter configuration
+    /// Create starter configuration
     Config {
-        /// output path
+        /// Output path
         #[arg(short, long)]
         output: std::path::PathBuf
     },
-    /// generate rosters
+    /// Generate rosters
     Generate {
-        /// path to canvas exported csv file
+        /// Path to canvas exported CSV file
         #[arg(short, long)]
         input: std::path::PathBuf,
-        /// output directory
+        /// Output directory
         #[arg(short, long)]
         output: Option<std::path::PathBuf>,
-        /// lab number
+        /// Lab number
         #[arg(long)]
         lab: usize,
-        /// skip Excel file generation
+        /// Skip Excel file generation
         #[arg(long)]
         nox: bool,
-        /// run with supplied configuration
-        #[arg(short, long)]
-        config: Option<std::path::PathBuf>
+        /// Run with supplied configuration
+        #[arg(short='c', long="with-config")]
+        config: Option<std::path::PathBuf>,
+        /// Do not create per-section or per-TA PDFs
+        #[arg(long="no-split")]
+        no_split: bool
     },
 }
 
@@ -116,7 +119,7 @@ fn main() -> Result<(), MainError> {
 
     match args.command {
         Subcmd::Config { output } => fs::write(&output, EXAMPLE_CONFIG)?,
-        Subcmd::Generate { input, output, lab, nox, config } => {
+        Subcmd::Generate { input, output, lab, nox, config, no_split } => {
             let config_path = config.unwrap_or(dirs.config_dir().join("rosters.toml"));
             let file = fs::read_to_string(config_path)
                 .unwrap_or("".into());
@@ -132,8 +135,13 @@ fn main() -> Result<(), MainError> {
             if !base_dir.exists() { Err("output directory does not exist")? }
             if !base_dir.is_dir() { Err("output path needs to be a directory")? }
 
-            let pdf_dir = base_dir.join("Blank Rosters");
-            if !pdf_dir.exists() { std::fs::create_dir_all(&pdf_dir)? };
+            let dir = base_dir.join("Blank Rosters");
+            let pdf_dir = if !no_split {
+                if !dir.exists() { std::fs::create_dir_all(&dir)? };
+                &dir
+            } else {
+                &base_dir
+            };
 
             let default_checkpoints = ["1".into(), "2".into(), "3".into(), "4".into()];
             let default_chkpt = ArrayVec::try_from(&default_checkpoints[..])
@@ -142,21 +150,23 @@ fn main() -> Result<(), MainError> {
                 .unwrap_or(HashMap::from([(lab.into(), default_chkpt.clone())]));
             let checkpoints = lab_checkpoints.get(&lab.into())
                 .unwrap_or(&default_chkpt);
-            if let Some(ta_assignment) = config.ta_assignment {
-                for (ta, sections) in ta_assignment.iter() {
-                    let rosters = sections.iter()
-                        .map(|&section| rosters.iter().find(|&r| r.section == section)
-                            .ok_or(format!("Section {} does not exist in the input data. \
-                                           Check your configuration/input data.", section)))
-                        .collect::<Result<Vec<_>, _>>()?
-                        .into_iter();
-                    let data_stream = DataStream::Many { rosters, tag: ta };
-                    write_pdf(lab.into(), &checkpoints, data_stream, &pdf_dir)?;
-                }
-            } else {
-                for roster in rosters.iter() {
-                    let data_stream: DataStream<std::iter::Empty<_>> = DataStream::One { roster };
-                    write_pdf(lab.into(), &checkpoints, data_stream, &pdf_dir)?;
+            if !no_split {
+                if let Some(ta_assignment) = config.ta_assignment {
+                    for (ta, sections) in ta_assignment.iter() {
+                        let rosters = sections.iter()
+                            .map(|&section| rosters.iter().find(|&r| r.section == section)
+                                .ok_or(format!("Section {} does not exist in the input data. \
+                                               Check your configuration/input data.", section)))
+                            .collect::<Result<Vec<_>, _>>()?
+                            .into_iter();
+                        let data_stream = DataStream::Many { rosters, tag: ta };
+                        write_pdf(lab.into(), &checkpoints, data_stream, &pdf_dir)?;
+                    }
+                } else {
+                    for roster in rosters.iter() {
+                        let data_stream: DataStream<std::iter::Empty<_>> = DataStream::One { roster };
+                        write_pdf(lab.into(), &checkpoints, data_stream, &pdf_dir)?;
+                    }
                 }
             }
             let data_stream = DataStream::Many { rosters: rosters.iter(), tag: "All" };
