@@ -1,5 +1,5 @@
 use derive_more::{From, Add, AddAssign, Div, Mul, Sub, SubAssign, Sum};
-use owned_ttf_parser::GlyphId;
+use owned_ttf_parser::{Face, GlyphId};
 use printpdf::{BlendMode, Color, Cmyk, IndirectFontRef, LineCapStyle, Mm,
                PdfDocumentReference, PdfLayerReference, SeperableBlendMode};
 use subsetter::{subset, Profile};
@@ -36,7 +36,7 @@ impl Width {
     fn width(self, text: &str, font: Font, size: f64) -> Result<Length, Error> {
         match self {
             Width::Auto => {
-                let face = owned_ttf_parser::Face::parse(font.into(), 0)?;
+                let face = Face::parse(font.into(), 0)?;
                 let length = text.chars()
                     .filter_map(|c| face.glyph_index(c))
                     .filter_map(|glyph| Some(
@@ -115,7 +115,7 @@ impl Line {
 }
 
 fn line_height(size: f64) -> Result<Length, Error> {
-    let face = owned_ttf_parser::Face::parse(REGULAR_FONT, 0)?;
+    let face = Face::parse(REGULAR_FONT, 0)?;
     Ok(Length::from_pt(size) * face.height() as f64 / 2048.)
 }
 
@@ -208,7 +208,7 @@ impl Page {
     }
 
     fn glyphs(&self, font: Font) -> Result<HashSet<GlyphId>, Error> {
-        let face = owned_ttf_parser::Face::parse(font.into(), 0)?;
+        let face = Face::parse(font.into(), 0)?;
         Ok(self.text.iter()
             .filter(|text| text.font == font)
             .flat_map(|text| text.str.chars())
@@ -217,7 +217,7 @@ impl Page {
     }
 
     fn add_header(&mut self, lab: Lab, section: Section,
-                      checkpoints: &[Checkpoint]) -> Result<(), Error> {
+                  checkpoints: &[Checkpoint]) -> Result<(), Error> {
         let text_width = PAGEWIDTH - MARGINS * 2.;
         let size = self.font_size;
         let line_height = line_height(size)?;
@@ -280,8 +280,9 @@ impl Page {
             .map(|w| w + side_padding * 2.)
             .map(|w| if w < min_col_width { min_col_width } else { w })
             .collect();
-        let center_width = text_width
-            - lwidths.iter().chain(rwidths.iter()).cloned().sum::<Length>();
+        let lwidth = lwidths.iter().copied().sum();
+        let rwidth = rwidths.iter().copied().sum();
+        let center_width = text_width - lwidth - rwidth;
         self.columns = lwidths.iter()
             .chain([&center_width].into_iter())
             .chain(rwidths.iter())
@@ -431,7 +432,7 @@ impl Document {
             Font::Regular => &self.regular_glyphs,
             Font::Bold => &self.bold_glyphs
         };
-        let glyph_ids: Vec<_> = glyphs.iter().cloned().collect();
+        let glyph_ids: Vec<_> = glyphs.iter().copied().collect();
         let font = subset(font.into(), 0, Profile::pdf(&glyph_ids))?;
         Ok(font)
     }

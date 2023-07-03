@@ -1,36 +1,36 @@
-use arrayvec::ArrayVec;
-use derive_more::{AsRef, Display, From, Into};
+use arrayvec::{ArrayVec, ArrayString};
+use derive_more::{AsRef, Display, From, FromStr, Into};
 use itertools::Itertools;
 use rand::seq::SliceRandom;
 use serde::{Deserialize, Deserializer};
 use serde::de::Error;
 
-use std::collections::HashMap;
 use std::fmt::{Display, Formatter};
+use std::collections::HashMap;
 
 use crate::error;
 
 #[derive(Deserialize, Debug)]
 pub struct Config {
-    #[serde(rename = "ta-assignment")]
-    pub ta_assignment: Option<HashMap<String, ArrayVec<Section, 8>>>,
+    #[serde(rename="ta-assignment")]
+    pub ta_assignment: Option<HashMap<TA, ArrayVec<Section, 8>>>,
     pub checkpoints: Option<HashMap<Lab, ArrayVec<Checkpoint, 8>>>,
 }
 
 #[derive(Clone, Debug, Deserialize, Eq, Ord, PartialEq, PartialOrd)]
 pub struct Record {
-    #[serde(rename(deserialize = "Section"))]
+    #[serde(rename(deserialize="Section"))]
     section: Section,
-    #[serde(rename(deserialize = "Student"))]
+    #[serde(rename(deserialize="Student"))]
     student: Name
 }
 
 #[derive(Clone, Copy, Debug, Deserialize, Display, Eq, From, Into, Hash, Ord, PartialEq, PartialOrd)]
-pub struct Section(#[serde(deserialize_with = "deserialize_section")] usize);
+pub struct Section(#[serde(deserialize_with="deserialize_section")] usize);
 
 #[derive(Deserialize)]
 #[serde(untagged)]
-enum Union { S(String), U(usize), }
+enum Union { S(ArrayString<40>), U(usize), }
 
 fn deserialize_section<'de, D>(deserializer: D) -> Result<usize, D::Error>
     where D: Deserializer<'de>, {
@@ -46,43 +46,51 @@ fn deserialize_section<'de, D>(deserializer: D) -> Result<usize, D::Error>
     Ok(res)
 }
 
-#[derive(Clone, Debug, Deserialize, Display, Eq, From, Ord, PartialEq, PartialOrd)]
-struct TA(String);
+#[derive(AsRef, Clone, Debug, Deserialize, Display, Eq, From, Hash, Ord, PartialEq, PartialOrd)]
+#[serde(transparent)]
+#[as_ref(forward)]
+pub struct TA(ArrayString<40>);
 
-#[derive(Copy, Clone, Debug, Deserialize, Display, Eq, From, Hash, Ord, PartialEq, PartialOrd)]
-#[serde(try_from = "String")]
+#[derive(Copy, Clone, Debug, Deserialize, Display, Eq, From, Into, Hash, Ord, PartialEq, PartialOrd)]
+#[serde(try_from="ArrayString<10>")]
 pub struct Lab(usize);
 
-impl TryFrom<String> for Lab {
-    type Error = crate::error::Error;
-    fn try_from(str: String) -> Result<Self, crate::error::Error> {
-        if str.chars().zip("lab".chars()).all(|(a, b)| a == b) {
+impl TryFrom<ArrayString<10>> for Lab {
+    type Error = error::Error;
+    fn try_from(str: ArrayString<10>) -> Result<Self, error::Error> {
+        if str.bytes().zip(b"lab".iter()).all(|(a, &b)| a == b) {
             Ok(Lab(str.as_str()[3..].parse()?))
         } else {
-            Err(crate::error::Error::UnknownLabPrefix)
+            Err(error::Error::UnknownLabPrefix(str))
         }
     }
 }
 
-#[derive(AsRef, Clone, Debug, Deserialize, Display, Eq, From, Ord, PartialEq, PartialOrd)]
-#[from(forward)]
+#[derive(AsRef, Clone, Debug, Deserialize, Display, Eq, From, FromStr, Ord, PartialEq, PartialOrd)]
 #[as_ref(forward)]
-pub struct Checkpoint(String);
+pub struct Checkpoint(ArrayString<20>);
 
 #[derive(Clone, Debug, Deserialize, Eq, Ord, PartialEq, PartialOrd)]
-#[serde(try_from = "String")]
+#[serde(try_from="ArrayString<40>")]
 struct Name {
-    first: String,
-    last: String
+    first: ArrayString<40>,
+    last: ArrayString<40>
 }
 
-impl TryFrom<String> for Name {
-    type Error = crate::error::Error;
-    fn try_from(str: String) -> Result<Self, crate::error::Error> {
-        let name_parts: Vec<&str> = str.split(',').collect();
+impl TryFrom<ArrayString<40>> for Name {
+    type Error = error::Error;
+    fn try_from(str: ArrayString<40>) -> Result<Self, error::Error> {
+        let name_parts: Vec<_> = str.split(',').collect();
         match &name_parts[..] {
-            &[last, first] => Ok(Name { first: first.trim().to_owned(), last: last.trim().to_owned() }),
-            _ => Err(crate::error::Error::ParseNameError)
+            &[l, f] => {
+                let trim = |s: &str| {
+                    let trimmed = s.trim();
+                    trimmed.try_into()
+                           .map_err(|_| error::Error::NameTooLongError(trimmed.into()))
+                };
+                Ok(Name { first: trim(f)?, last: trim(l)? })
+            },
+            _ => Err(error::Error::ParseNameError(str))
         }
     }
 }

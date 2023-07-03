@@ -1,16 +1,16 @@
-use arrayvec::ArrayVec;
 use clap::{Parser, Subcommand};
 use data::{Checkpoint, Config, Lab, Roster};
 use directories::BaseDirs;
 use main_error::MainError;
 use pdf::{Font, FontRef};
 use printpdf::PdfDocument;
+use rayon::iter::{IntoParallelRefIterator, ParallelIterator};
 
-use std::collections::HashMap;
 use std::env;
 use std::fs;
 use std::io::BufWriter;
 use std::path::PathBuf;
+use std::str::FromStr;
 
 mod data;
 mod error;
@@ -81,7 +81,7 @@ fn write_pdf<'a, T>(lab: Lab, checkpoints: &[Checkpoint], data: DataStream<'a, T
     };
     let regular_font = pdf.font_subset(Font::Regular)?;
     let bold_font = pdf.font_subset(Font::Bold)?;
-    let mut doc = PdfDocument::empty("Rosters");
+    let mut doc = PdfDocument::empty(&fname);
     let regular = doc.add_external_font(&regular_font[..])?;
     let bold = doc.add_external_font(&bold_font[..])?;
     let font_ref = FontRef { regular: &regular, bold: &bold };
@@ -120,9 +120,8 @@ fn main() -> Result<(), MainError> {
     match args.command {
         Subcmd::Config { output } => fs::write(&output, EXAMPLE_CONFIG)?,
         Subcmd::Generate { input, output, lab, nox, config, no_split } => {
-            let config_path = config.unwrap_or(dirs.config_dir().join("rosters.toml"));
-            let file = fs::read_to_string(config_path)
-                .unwrap_or("".into());
+            let config_path = config.unwrap_or_else(|| dirs.config_dir().join("rosters.toml"));
+            let file = fs::read_to_string(config_path).unwrap_or_else(|_| "".into());
             let config: Config = toml::from_str(&file)?;
             if !input.exists() { Err("input file does not exist")? }
             let mut csv = csv::Reader::from_path(input)?;
@@ -131,7 +130,7 @@ fn main() -> Result<(), MainError> {
                 .collect();
             let rosters = Roster::from_records(&records)?;
 
-            let base_dir = output.unwrap_or(env::current_dir()?);
+            let base_dir = output.ok_or("").or_else(|_| env::current_dir())?;
             if !base_dir.exists() { Err("output directory does not exist")? }
             if !base_dir.is_dir() { Err("output path needs to be a directory")? }
 
@@ -143,30 +142,29 @@ fn main() -> Result<(), MainError> {
                 &base_dir
             };
 
-            let default_checkpoints = ["1".into(), "2".into(), "3".into(), "4".into()];
-            let default_chkpt = ArrayVec::try_from(&default_checkpoints[..])
-                .map_err(|_| "impossible branch")?;
-            let lab_checkpoints = config.checkpoints
-                .unwrap_or(HashMap::from([(lab.into(), default_chkpt.clone())]));
-            let checkpoints = lab_checkpoints.get(&lab.into())
+            let default_chkpt = ["1", "2", "3", "4"].into_iter()
+                .map(|s| FromStr::from_str(s))
+                .collect::<Result<_, _>>()?;
+            let checkpoints = config.checkpoints.as_ref()
+                .and_then(|m| m.get(&lab.into()))
                 .unwrap_or(&default_chkpt);
             if !no_split {
                 if let Some(ta_assignment) = config.ta_assignment {
-                    for (ta, sections) in ta_assignment.iter() {
+                    ta_assignment.par_iter().try_for_each(|(ta, sections)| {
                         let rosters = sections.iter()
                             .map(|&section| rosters.iter().find(|&r| r.section == section)
-                                .ok_or(format!("Section {} does not exist in the input data. \
-                                               Check your configuration/input data.", section)))
+                                .ok_or(error::Error::NonexistantSection(section)))
                             .collect::<Result<Vec<_>, _>>()?
                             .into_iter();
-                        let data_stream = DataStream::Many { rosters, tag: ta };
+                        let data_stream = DataStream::Many { rosters, tag: ta.as_ref() };
                         write_pdf(lab.into(), &checkpoints, data_stream, &pdf_dir)?;
-                    }
+                        Result::<(), error::Error>::Ok(())
+                    })?;
                 } else {
-                    for roster in rosters.iter() {
+                    rosters.par_iter().try_for_each(|roster| {
                         let data_stream: DataStream<std::iter::Empty<_>> = DataStream::One { roster };
-                        write_pdf(lab.into(), &checkpoints, data_stream, &pdf_dir)?;
-                    }
+                        write_pdf(lab.into(), &checkpoints, data_stream, &pdf_dir)
+                    })?;
                 }
             }
             let data_stream = DataStream::Many { rosters: rosters.iter(), tag: "All" };

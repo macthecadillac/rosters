@@ -35,7 +35,7 @@ for the lab through the configuration file.
 
 ## config
 
-`rosters config --output /parth/to/file` generates a starter configuration file.
+`rosters config --output /path/to/file` generates a starter configuration file.
 
 # Configuration
 
@@ -53,15 +53,20 @@ it is located at `~/.config/rosters.toml`. TOML files are plain text files and
 they can be edited with any text editor (except perhaps for Microsoft Notepad,
 which is notorious for creating files with encoding issues).
 
-## Migration from version `w22`
+## Changes from version `w22`
 
-The configuration file format has not changed. However, the file name (and
-specifically on macOS, the location) have been changed. If you wish to reuse the
-configuration from `w22`, you need to rename the file from `rosters.txt` to
-`rosters.toml`. On macOS, you also need to move the file from `~/.config` to
-`~/Library/Application Support`, which is a more standard location for
-application configuration. This location can be accessed from Finder through the
-"Go to Folder" menu item or the key binding ⇧ ⌘ G.
+- You can now specify a configuration file at run time instead of relying on a
+  file at a default (and hidden) location.
+
+- The configuration file format has not changed. However, the file name (and
+  specifically on macOS, the location) has changed. If you wish to reuse the
+  configuration from `w22`, you need to rename the file from `rosters.txt` to
+  `rosters.toml`. On macOS, you also need to move the file from `~/.config` to
+  `~/Library/Application Support`, which is a more standard location for
+  application configuration. This location can be accessed from Finder through
+  the "Go to Folder" menu item or the key binding ⇧ ⌘ G. You can of course forgo
+  this step and place the configuration file anywhere on your system and specify
+  its path every time you run the program.
 
 ## Sample Configuration
 
@@ -114,7 +119,7 @@ lab9 = ['A3', 'B2', 'B9', 'C4']
 
 ```sh
 #  generate a starter configuration file
-$ rosters config --output /parth/to/file
+$ rosters config --output /path/to/file
 
 # generate rosters from a Canvas exported CSV file
 $ rosters generate --lab 1 --input /path/to/canvas.csv
