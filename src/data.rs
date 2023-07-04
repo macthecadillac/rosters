@@ -131,7 +131,7 @@ impl<'a> Roster<'a> {
                 let mut names: Vec<_> = list.map(|&r| r.student.as_ref()).collect();
                 names.shuffle(&mut rng);
                 let n = names.len();
-                let ngroups = n / 5 + if n % 5 == 0 { 0 } else { 1 };
+                let ngroups = Ord::min(6, n / 5 + if n % 5 == 0 { 0 } else { 1 });
                 let mut groups = ArrayVec::new();
                 for _ in 0..ngroups { groups.push(ArrayVec::new()); }
                 for (n, &name) in (0..ngroups).cycle().zip(names.iter()) {
