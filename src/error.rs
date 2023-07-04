@@ -19,7 +19,7 @@ pub enum Error {
     IOError(std::io::Error),
     XlsxError(rust_xlsxwriter::XlsxError),
     #[display(fmt="section size of over 42 is not supported")]
-    SectionSizeError(arrayvec::CapacityError<()>),
+    SectionSizeError,
     #[display(fmt="the name \"{}\" is too long and overflowed the stack", _0)]
     #[from(ignore)]
     NameTooLongError(String),

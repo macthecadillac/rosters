@@ -135,11 +135,11 @@ impl<'a> Roster<'a> {
                 let mut groups = ArrayVec::new();
                 for _ in 0..ngroups { groups.push(ArrayVec::new()); }
                 for (n, &name) in (0..ngroups).cycle().zip(names.iter()) {
-                    groups[n].push(name);
+                    groups[n].try_push(name).map_err(|_| error::Error::SectionSizeError)?;
                 }
-                Roster { section, groups }
+                Ok(Roster { section, groups })
             })
-            .collect();
+            .collect::<Result<Vec<_>, error::Error>>()?;
         Ok(rosters)
     }
 }
