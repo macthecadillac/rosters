@@ -1,3 +1,4 @@
+use arrayvec::ArrayVec;
 use clap::{Parser, Subcommand};
 use data::{Checkpoint, Config, Lab, Roster};
 use directories::BaseDirs;
@@ -142,9 +143,10 @@ fn main() -> Result<(), MainError> {
                 &base_dir
             };
 
-            let default_chkpt = ["1", "2", "3", "4"].into_iter()
-                .map(|s| FromStr::from_str(s))
-                .collect::<Result<_, _>>()?;
+            let mut default_chkpt = ArrayVec::new();
+            for s in ["1", "2", "3", "4"].into_iter() {
+                default_chkpt.try_push(FromStr::from_str(s)?)?;
+            }
             let checkpoints = config.checkpoints.as_ref()
                 .and_then(|m| m.get(&lab.into()))
                 .unwrap_or(&default_chkpt);
@@ -157,8 +159,7 @@ fn main() -> Result<(), MainError> {
                             .collect::<Result<Vec<_>, _>>()?
                             .into_iter();
                         let data_stream = DataStream::Many { rosters, tag: ta.as_ref() };
-                        write_pdf(lab.into(), &checkpoints, data_stream, &pdf_dir)?;
-                        Result::<(), error::Error>::Ok(())
+                        write_pdf(lab.into(), &checkpoints, data_stream, &pdf_dir)
                     })?;
                 } else {
                     rosters.par_iter().try_for_each(|roster| {

@@ -6,7 +6,7 @@ use subsetter::{subset, Profile};
 
 use std::collections::HashSet;
 
-use crate::data::{Checkpoint, Lab, NameRef, Roster, Section};
+use crate::data::{Checkpoint, Lab, Name, Roster, Section};
 use crate::error::Error;
 
 const REGULAR_FONT: &'static [u8] = std::include_bytes!("../fonts/Carlito-Regular.ttf");
@@ -15,6 +15,7 @@ const BOLD_FONT: &'static [u8] = std::include_bytes!("../fonts/Carlito-Bold.ttf"
 const PAGEWIDTH: Length = Length(215.9);   // 8.5 in
 const PAGEHEIGHT: Length = Length(279.4);  // 11 in
 const MARGINS: Length = Length(20.32);     // 0.85 in
+const FONTSIZE: f64 = 11.;
 
 #[derive(Copy, Clone, Eq, PartialEq)]
 #[allow(dead_code)]
@@ -175,7 +176,7 @@ impl Column {
     }
 
     fn anchor_left(self, size: f64) -> Length {
-        self.left + Length::from_pt(size / 11. * 6.)
+        self.left + Length::from_pt(size / FONTSIZE * 6.)
     }
 }
 
@@ -223,7 +224,7 @@ impl Page {
         let line_height = line_height(size)?;
         let side_padding = Length::from_pt(6.);
         let top_padding = Length::from_pt(size / 22.);
-        let bottom_padding = Length::from_pt(size / 11. * 4.5);
+        let bottom_padding = Length::from_pt(size / FONTSIZE * 4.5);
         let x0 = Length::default();
         let mut y0 = Length::default();
         let thickness = Length::from_pt(2.);
@@ -314,12 +315,12 @@ impl Page {
         Ok(())
     }
 
-    fn add_group(&mut self, group: usize, students: &[NameRef]) -> Result<(), Error> {
+    fn add_group(&mut self, group: usize, students: &[&Name]) -> Result<(), Error> {
         let y0 = self.table_height;
         let size = self.font_size;
         let line_height = line_height(size)?;
         let top_padding = Length::from_pt(0.);
-        let bottom_padding = Length::from_pt(size / 11. * 5.);
+        let bottom_padding = Length::from_pt(size / FONTSIZE * 5.);
         let group_col = self.columns[2];
         let student_col = self.columns[3];
         let group_size = students.len();
@@ -410,10 +411,24 @@ pub struct Document {
 }
 
 impl Document {
+    fn compute_font_size(&self, roster: &Roster) -> Result<f64, Error> {
+        let face = Face::parse(REGULAR_FONT, 0)?;
+        let nrows: usize = roster.groups.iter().map(|g| g.len()).sum();
+        let ngroups = roster.groups.len();
+        let th = PAGEHEIGHT - MARGINS * 2.;
+        let group_sep = Length::from_pt(1.3) * (ngroups - 1) as f64;
+        let name_sep = Length::from_pt(1.) * (nrows - ngroups - 1) as f64;
+        let thick_sep = Length::from_pt(2.) * 3.;
+        let max_row_height = (th - group_sep - name_sep - thick_sep) / (nrows + 2) as f64;
+        let c = 2048. / face.height() as f64;
+        let font_size = max_row_height.to_pt() * c * FONTSIZE / (FONTSIZE + 5. * c);
+        Ok(if font_size <= FONTSIZE { font_size } else { FONTSIZE })
+    }
+
     pub fn add_page(&mut self, roster: &Roster, lab: Lab, checkpoints: &[Checkpoint])
         -> Result<(), Error> {
         let mut page = Page::default();
-        page.font_size = 11.;
+        page.font_size = self.compute_font_size(roster)?;
         page.ngroups = roster.groups.len();
         page.title = format!("Section {}", roster.section);
         page.add_header(lab, roster.section, checkpoints)?;
