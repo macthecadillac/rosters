@@ -413,8 +413,8 @@ pub struct Document {
 impl Document {
     fn compute_font_size(&self, roster: &Roster) -> Result<f64, Error> {
         let face = Face::parse(REGULAR_FONT, 0)?;
-        let nrows: usize = roster.groups.iter().map(|g| g.len()).sum();
-        let ngroups = roster.groups.len();
+        let ngroups = roster.ngroups();
+        let nrows = roster.names.len();
         let th = PAGEHEIGHT - MARGINS * 2.;
         let group_sep = Length::from_pt(1.3) * (ngroups - 1) as f64;
         let name_sep = Length::from_pt(1.) * (nrows - ngroups - 1) as f64;
@@ -429,10 +429,10 @@ impl Document {
         -> Result<(), Error> {
         let mut page = Page::default();
         page.font_size = self.compute_font_size(roster)?;
-        page.ngroups = roster.groups.len();
+        page.ngroups = roster.ngroups();
         page.title = format!("Section {}", roster.section);
         page.add_header(lab, roster.section, checkpoints)?;
-        for (group, students) in roster.groups.iter().enumerate() {
+        for (group, students) in roster.groups().enumerate() {
             page.add_group(group + 1, students)?;
         }
         page.add_vertical_lines();

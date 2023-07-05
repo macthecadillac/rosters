@@ -34,12 +34,11 @@ impl Workbook {
             Under the \"Late\" column, enter the amount of time if they are late",
             &red_text)?;
         let mut row = 2;
-        for (i, s) in ["Signature", "Late", "Group", "Student"].into_iter()
-                                                               .enumerate() {
+        for (i, s) in ["Signature", "Late", "Group", "Student"].into_iter().enumerate() {
             sheet.write_string(row, i as u16, s)?;
         }
         row += 1;
-        for (group, students) in roster.groups.iter().enumerate() {
+        for (group, students) in roster.groups().enumerate() {
             for student in students.iter() {
                 sheet.write_number_with_format(row, 2, group as f64 + 1., &num_fmt)?;
                 sheet.write_string(row, 3, format!("{}", student))?;

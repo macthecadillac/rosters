@@ -18,6 +18,7 @@ const TARGETGROUPSIZE: usize = 5;
 const MAXCHECKPOINTS: usize = 8;
 const MAXCHECKPOINTLEN: usize = 20;
 
+
 #[derive(Deserialize, Debug)]
 pub struct Config {
     #[serde(rename="ta-assignment")]
@@ -113,10 +114,39 @@ impl Display for Name {
 #[derive(Clone, Debug)]
 pub struct Roster<'a> {
     pub section: Section,
-    pub groups: ArrayVec<ArrayVec<&'a Name, MAXGROUPSIZE>, NGROUPS>
+    pub names: ArrayVec<&'a Name, {MAXGROUPSIZE * NGROUPS}>,
+}
+
+#[derive(Clone, Debug)]
+pub struct Groups<'a> {
+    names: &'a [&'a Name],
+    ngroups: usize,
+    start: usize,
+    group: usize
+}
+
+fn ceil_div(a: usize, b: usize) -> usize { (a + b - 1) / b }
+
+impl<'a> Iterator for Groups<'a> {
+    type Item = &'a [&'a Name];
+    fn next(&mut self) -> Option<Self::Item> {
+        let size = ceil_div(self.names.len() - self.group, self.ngroups);
+        let start = self.start;
+        self.start += size;
+        self.group += 1;
+        self.names.get(start..start + size)
+    }
 }
 
 impl<'a> Roster<'a> {
+    pub fn ngroups(&self) -> usize {
+        Ord::min(NGROUPS, ceil_div(self.names.len(), TARGETGROUPSIZE))
+    }
+
+    pub fn groups(&'a self) -> Groups<'a> {
+        Groups { ngroups: self.ngroups(), names: self.names.as_slice(), start: 0, group: 0 }
+    }
+
     pub fn from_records(records: &'a [Record]) -> Result<Vec<Roster<'a>>, error::Error> {
         let mut rng = rand::thread_rng();
         let mut recs: Vec<_> = records.iter().collect();
@@ -125,23 +155,12 @@ impl<'a> Roster<'a> {
             .group_by(|record| record.section)
             .into_iter()
             .map(|(section, list)| {
-                let mut names: ArrayVec<_, {NGROUPS * MAXGROUPSIZE}> = ArrayVec::new();
+                let mut names = ArrayVec::new();
                 for item in list {
                     names.try_push(&item.student).map_err(CapacityError::simplify)?;
                 }
                 names.shuffle(&mut rng);
-                let n = names.len();
-                let rem = if n % TARGETGROUPSIZE == 0 { 0 } else { 1 };
-                let ngroups = Ord::min(NGROUPS, n / TARGETGROUPSIZE + rem);
-                let mut groups = ArrayVec::new();
-                // should not panic because of try_push above
-                for _ in 0..ngroups { groups.push(ArrayVec::new()); }
-                for chunk in names.chunks(ngroups) {
-                    for (group, &name) in groups.iter_mut().zip(chunk.iter()) {
-                        group.push(name);  // should not panic
-                    }
-                }
-                Ok(Roster { section, groups })
+                Ok(Roster { section, names })
             })
             .collect::<Result<Vec<_>, error::Error>>()?;
         Ok(rosters)
