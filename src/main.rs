@@ -1,3 +1,4 @@
+ #![windows_subsystem = "windows"]
 use arrayvec::ArrayVec;
 use data::{Checkpoint, Config, Lab, Roster};
 use directories::BaseDirs;
@@ -85,16 +86,16 @@ mod win_gui {
 
     #[derive(Default, NwgUi)]
     pub struct App {
-        #[nwg_control(title: "Roster Generator", size: (500, 150))]
+        #[nwg_control(title: "Roster Generator", size: (480, 140), flags: "WINDOW|VISIBLE")]
         #[nwg_events(OnWindowClose: [App::exit])]
         window: Window,
         #[nwg_layout(parent: window, spacing: 1)]
         grid: GridLayout,
         #[nwg_control(text: "Canvas data:", h_align: HTextAlign::Right)]
-        #[nwg_layout_item(layout: grid, row: 0, col: 0, col_span: 2)]
+        #[nwg_layout_item(layout: grid, row: 0, col: 0, col_span: 3)]
         input_label: Label,
         #[nwg_control(readonly: true)]
-        #[nwg_layout_item(layout: grid, row: 0, col: 2, col_span: 5)]
+        #[nwg_layout_item(layout: grid, row: 0, col: 3, col_span: 10)]
         input: TextInput,
         #[nwg_resource(
             title: "Open File",
@@ -103,26 +104,26 @@ mod win_gui {
         )]
         input_file_dialog: FileDialog,
         #[nwg_control(text: "Select")]
-        #[nwg_layout_item(layout: grid, row: 0,  col: 7)]
+        #[nwg_layout_item(layout: grid, row: 0,  col: 13, col_span: 2)]
         #[nwg_events(OnButtonClick: [App::open_csv])]
         input_file_picker_button: Button,
         #[nwg_control(text: "Output folder:", h_align: HTextAlign::Right)]
-        #[nwg_layout_item(layout: grid, row: 1, col: 0, col_span: 2)]
+        #[nwg_layout_item(layout: grid, row: 1, col: 0, col_span: 3)]
         output_label: Label,
         #[nwg_control(text: "<optional>", readonly: true)]
-        #[nwg_layout_item(layout: grid, row: 1, col: 2, col_span: 5)]
+        #[nwg_layout_item(layout: grid, row: 1, col: 3, col_span: 10)]
         output: TextInput,
         #[nwg_resource(title: "Open Folder", action: FileDialogAction::OpenDirectory)]
         output_directory_dialog: FileDialog,
         #[nwg_control(text: "Select")]
-        #[nwg_layout_item(layout: grid, row: 1,  col: 7)]
+        #[nwg_layout_item(layout: grid, row: 1,  col: 13, col_span: 2)]
         #[nwg_events(OnButtonClick: [App::open_dir])]
         output_file_picker_button: Button,
         #[nwg_control(text: "Config file:", h_align: HTextAlign::Right)]
-        #[nwg_layout_item(layout: grid, row: 2, col: 0, col_span: 2)]
+        #[nwg_layout_item(layout: grid, row: 2, col: 0, col_span: 3)]
         config_label: Label,
         #[nwg_control(text: "<optional>", readonly: true)]
-        #[nwg_layout_item(layout: grid, row: 2, col: 2, col_span: 5)]
+        #[nwg_layout_item(layout: grid, row: 2, col: 3, col_span: 10)]
         config: TextInput,
         #[nwg_resource(
             title: "Open File",
@@ -131,34 +132,38 @@ mod win_gui {
         )]
         config_file_dialog: FileDialog,
         #[nwg_control(text: "Select")]
-        #[nwg_layout_item(layout: grid, row: 2,  col: 7)]
+        #[nwg_layout_item(layout: grid, row: 2,  col: 13, col_span: 2)]
         #[nwg_events(OnButtonClick: [App::open_toml])]
         config_file_picker_button: Button,
         #[nwg_control(text: "Lab:", h_align: HTextAlign::Right)]
-        #[nwg_layout_item(layout: grid, row: 3, col: 0, col_span: 2)]
+        #[nwg_layout_item(layout: grid, row: 3, col: 0, col_span: 3)]
         label: Label,
         #[nwg_control(collection: vec!["1", "2", "3", "4", "5", "6", "7", "8", "9"],
                       selected_index: Some(0))]
-        #[nwg_layout_item(layout: grid, row: 3, col: 2)]
+        #[nwg_layout_item(layout: grid, row: 3, col: 3, col_span: 2)]
         lab: ComboBox<&'static str>,
         #[nwg_control(text: "Do not generate spreadsheet", focus: true)]
-        #[nwg_layout_item(layout: grid, row: 3, col: 3, col_span: 3)]
+        #[nwg_layout_item(layout: grid, row: 3, col: 5, col_span: 6)]
         nox: CheckBox,
         #[nwg_control(text: "Do not split PDF", focus: true)]
-        #[nwg_layout_item(layout: grid, row: 3, col: 6, col_span: 2)]
+        #[nwg_layout_item(layout: grid, row: 3, col: 11, col_span: 4)]
         no_split: CheckBox,
         #[nwg_control(text: "Create Sample Configuration")]
-        #[nwg_layout_item(layout: grid, row: 4, col: 2, col_span: 3)]
+        #[nwg_layout_item(layout: grid, row: 4, col: 4, col_span: 7)]
         #[nwg_events(OnButtonClick: [App::save_config])]
         sample_config_button: Button,
-        #[nwg_resource(title: "Save As", action: FileDialogAction::Save)]
+        #[nwg_resource(
+            title: "Save As",
+            action: FileDialogAction::Save,
+            filters: "TOML(*.toml)"
+        )]
         sample_config_dialog: FileDialog,
         #[nwg_control(text: "Run")]
-        #[nwg_layout_item(layout: grid, row: 4, col: 5, col_span: 2)]
+        #[nwg_layout_item(layout: grid, row: 4, col: 11, col_span: 2)]
         #[nwg_events(OnButtonClick: [App::generate])]
         run_button: Button,
         #[nwg_control(text: "Exit")]
-        #[nwg_layout_item(layout: grid, row: 4,  col: 7)]
+        #[nwg_layout_item(layout: grid, row: 4,  col: 13, col_span: 2)]
         #[nwg_events(OnButtonClick: [App::exit])]
         exit: Button
     }
@@ -237,8 +242,9 @@ mod win_gui {
     #[allow(unused_imports)]
     pub fn main() {
         native_windows_gui::init().expect("Failed to init Windows GUI");
-        native_windows_gui::Font::set_global_family("Segoe UI")
-                                 .expect("Failed to set default font");
+        let mut font = native_windows_gui::Font::default();
+        let _ = native_windows_gui::Font::builder().size(14).family("Segoe UI").build(&mut font);
+        let _ = native_windows_gui::Font::set_global_default(Some(font));
         use app_ui::AppUi;
         let _app = App::build_ui(Default::default()).unwrap();
         native_windows_gui::dispatch_thread_events();
@@ -317,6 +323,7 @@ fn generate(input: PathBuf,
     let records: Vec<_> = csv.deserialize()
         .filter_map(|x| x.ok())
         .collect();
+    if records.is_empty() { Err("no valid record found in the data file")? };
     let rosters = Roster::from_records(&records)?;
 
     let base_dir = output.ok_or("").or_else(|_| env::current_dir())?;
