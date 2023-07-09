@@ -44,7 +44,6 @@ otherwise the program will look for a configuration file at a standard location
 on your platform. If no configuration is found, the program will run with
 default parameters.
 
-On Windows, the configuration file is located at `%LOCALAPPDATA%\rosters.toml`.
 On macOS, the configuration file is located at `~/Library/Application
 Support/rosters.toml`. On Unix (with the exception of macOS)/Unix-like (such as
 Linux) systems with the environmental variable `$XDG_CONFIG_HOME` configured,
