@@ -80,90 +80,94 @@ mod unix_cli {
 mod win_gui {
     use native_windows_derive::NwgUi;
     use native_windows_gui::{Button, CheckBox, CheckBoxState, ComboBox, FileDialog,
-                             GridLayout, Label, NativeUi, TextInput, Window};
+                             Label, NativeUi, TextInput, Window};
     use std::env;
     use std::fs;
 
     #[derive(Default, NwgUi)]
     pub struct App {
-        #[nwg_control(title: "Roster Generator", size: (480, 140), flags: "WINDOW|VISIBLE")]
+        #[nwg_control(title: "Roster Generator", size: (520, 212), flags: "WINDOW|VISIBLE")]
         #[nwg_events(OnWindowClose: [App::exit])]
         window: Window,
-        #[nwg_layout(parent: window, spacing: 1)]
-        grid: GridLayout,
-        #[nwg_control(text: "Canvas data:", h_align: HTextAlign::Right)]
-        #[nwg_layout_item(layout: grid, row: 0, col: 0, col_span: 3)]
+
+        #[nwg_control(text: "Canvas data:", position: (0, 14), size: (91, 25), h_align: HTextAlign::Right)]
         input_label: Label,
-        #[nwg_control(readonly: true)]
-        #[nwg_layout_item(layout: grid, row: 0, col: 3, col_span: 10)]
+
+        #[nwg_control(readonly: true, position: (99, 11), size: (333, 20))]
         input: TextInput,
+
         #[nwg_resource(
             title: "Open File",
             action: FileDialogAction::Open,
             filters: "CSV(*.csv)|Any (*.*)"
         )]
         input_file_dialog: FileDialog,
-        #[nwg_control(text: "Select")]
-        #[nwg_layout_item(layout: grid, row: 0,  col: 13, col_span: 2)]
+
+        #[nwg_control(text: "Select", position: (440, 9), size: (72, 23))]
         #[nwg_events(OnButtonClick: [App::open_csv])]
         input_file_picker_button: Button,
-        #[nwg_control(text: "Output folder:", h_align: HTextAlign::Right)]
-        #[nwg_layout_item(layout: grid, row: 1, col: 0, col_span: 3)]
+
+        #[nwg_control(text: "Output folder:", position: (0, 41), size: (91, 25), h_align: HTextAlign::Right)]
         output_label: Label,
-        #[nwg_control(text: "<optional>", readonly: true)]
-        #[nwg_layout_item(layout: grid, row: 1, col: 3, col_span: 10)]
+
+        #[nwg_control(text: "<optional>", readonly: true, position: (99, 39), size: (333, 20))]
         output: TextInput,
+
         #[nwg_resource(title: "Open Folder", action: FileDialogAction::OpenDirectory)]
         output_directory_dialog: FileDialog,
-        #[nwg_control(text: "Select")]
-        #[nwg_layout_item(layout: grid, row: 1,  col: 13, col_span: 2)]
+
+        #[nwg_control(text: "Select", position: (440, 36), size: (72, 23))]
         #[nwg_events(OnButtonClick: [App::open_dir])]
         output_file_picker_button: Button,
-        #[nwg_control(text: "Config file:", h_align: HTextAlign::Right)]
-        #[nwg_layout_item(layout: grid, row: 2, col: 0, col_span: 3)]
+
+        #[nwg_control(text: "Config file:", position: (0, 68), size: (91, 25), h_align: HTextAlign::Right)]
         config_label: Label,
-        #[nwg_control(text: "<optional>", readonly: true)]
-        #[nwg_layout_item(layout: grid, row: 2, col: 3, col_span: 10)]
+
+        #[nwg_control(text: "<optional>", readonly: true, position: (99, 66), size: (333, 20))]
         config: TextInput,
+
         #[nwg_resource(
             title: "Open File",
             action: FileDialogAction::Open,
             filters: "TOML(*.toml)|TXT(*.txt)|Any(*.*)"
         )]
         config_file_dialog: FileDialog,
-        #[nwg_control(text: "Select")]
-        #[nwg_layout_item(layout: grid, row: 2,  col: 13, col_span: 2)]
+
+        #[nwg_control(text: "Select", position: (440, 64), size: (72, 23))]
         #[nwg_events(OnButtonClick: [App::open_toml])]
         config_file_picker_button: Button,
-        #[nwg_control(text: "Lab:", h_align: HTextAlign::Right)]
-        #[nwg_layout_item(layout: grid, row: 3, col: 0, col_span: 3)]
+
+        #[nwg_control(text: "Lab:", position: (0, 96), size: (91, 25), h_align: HTextAlign::Right)]
         label: Label,
+
         #[nwg_control(collection: vec!["1", "2", "3", "4", "5", "6", "7", "8", "9"],
-                      selected_index: Some(0))]
-        #[nwg_layout_item(layout: grid, row: 3, col: 3, col_span: 2)]
+                      selected_index: Some(0),
+                      position: (99, 92),
+                      size: (57, 23))]
         lab: ComboBox<&'static str>,
-        #[nwg_control(text: "Do not generate spreadsheet", focus: true)]
-        #[nwg_layout_item(layout: grid, row: 3, col: 5, col_span: 6)]
+
+        #[nwg_control(text: "Do not generate spreadsheet", position: (99, 120), size: (175, 25), focus: true)]
         nox: CheckBox,
-        #[nwg_control(text: "Do not split PDF", focus: true)]
-        #[nwg_layout_item(layout: grid, row: 3, col: 11, col_span: 4)]
+
+        #[nwg_control(text: "Do not split PDF", position: (99, 147), size: (105, 25), focus: true)]
         no_split: CheckBox,
-        #[nwg_control(text: "Create Sample Configuration")]
-        #[nwg_layout_item(layout: grid, row: 4, col: 4, col_span: 7)]
+
+        #[nwg_control(text: "Create Sample Configuration", position: (164, 180), size: (192, 23))]
         #[nwg_events(OnButtonClick: [App::save_config])]
         sample_config_button: Button,
+
         #[nwg_resource(
             title: "Save As",
             action: FileDialogAction::Save,
             filters: "TOML(*.toml)"
         )]
         sample_config_dialog: FileDialog,
-        #[nwg_control(text: "Run")]
-        #[nwg_layout_item(layout: grid, row: 4, col: 11, col_span: 2)]
+
+        #[nwg_control(text: "Run", position: (362, 180), size: (72, 23))]
         #[nwg_events(OnButtonClick: [App::generate])]
         run_button: Button,
-        #[nwg_control(text: "Exit")]
-        #[nwg_layout_item(layout: grid, row: 4,  col: 13, col_span: 2)]
+
+        #[nwg_control(text: "Exit", position: (440, 180), size: (72, 23))]
         #[nwg_events(OnButtonClick: [App::exit])]
         exit: Button
     }
@@ -243,7 +247,7 @@ mod win_gui {
     pub fn main() {
         native_windows_gui::init().expect("Failed to init Windows GUI");
         let mut font = native_windows_gui::Font::default();
-        let _ = native_windows_gui::Font::builder().size(14).family("Segoe UI").build(&mut font);
+        let _ = native_windows_gui::Font::builder().size(16).family("Segoe UI").build(&mut font);
         let _ = native_windows_gui::Font::set_global_default(Some(font));
         use app_ui::AppUi;
         let _app = App::build_ui(Default::default()).unwrap();
