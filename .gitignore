@@ -9,3 +9,8 @@ lib/src/rust_bindgen.ml*
 **/target
 **/.cargo
 *.pdf
+*.sh
+*.tar.gz
+*.sig
+*.zip
+SHA512SUMS
