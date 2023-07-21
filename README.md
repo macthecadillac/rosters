@@ -48,7 +48,8 @@ On macOS, the configuration file is located at `~/Library/Application
 Support/rosters.toml`. On Unix (with the exception of macOS)/Unix-like (such as
 Linux) systems with the environmental variable `$XDG_CONFIG_HOME` configured,
 the configuration file is located at `$XDG_CONFIG_HOME/rosters.toml`, otherwise
-it is located at `~/.config/rosters.toml`. TOML files are plain text files and
+it is located at `~/.config/rosters.toml`. On windows, the configuration file is
+located at `%LOCALAPPDATA%\rosters.toml`. TOML files are plain text files and
 they can be edited with any text editor (except perhaps for Microsoft Notepad,
 which is notorious for creating files with encoding issues).
 

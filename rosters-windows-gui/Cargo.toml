@@ -1,0 +1,21 @@
+[package]
+name = "rosters-windows-gui"
+version.workspace = true
+authors.workspace = true
+description.workspace = true
+edition.workspace = true
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+arrayvec = { version = "0.7.4", default-features = false }
+rosters-lib = { path = "../rosters-lib" }
+toml = "0.7.6"
+
+[target.'cfg(windows)'.dependencies]
+native-windows-derive = "1.0.5"
+native-windows-gui = "1.0.13"
+
+[[bin]]
+name = "rosters-windows-gui"
+path = "src/main.rs"
