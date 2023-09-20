@@ -4,7 +4,7 @@ default-members = ["rosters-cli"]
 
 [workspace.package]
 authors = ["Mac Lee"]
-version = "1.99.11"
+version = "2.0.0"
 edition = "2021"
 description = "Generate rosters for 1-series labs"
 license-file = "LICENSE"
@@ -14,5 +14,4 @@ readme = "README.md"
 strip = "symbols"
 codegen-units = 1
 lto = true
-# panic = "abort"
 incremental = false
