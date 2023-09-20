@@ -40,7 +40,7 @@ Here is a sample configuration with all the recognized keys:
 [ta-assignment]
 # LHS is the name of the TA. There cannot be spaces within a name.
 # RHS is the list of sections that the TA is assigned to. It must be a list of
-# integers separated by commas. The generator only supports up to 8 sections per
+# integers separated by commas. The generator only supports up to 20 sections per
 # TA.
 Joe = [38, 40]
 Donny = [17, 19, 29, 35]
@@ -59,7 +59,8 @@ Lyndon = [37, 39]
 [checkpoints]
 # LHS must be in the form of "lab" followed by an integer.
 # RHS is a list of strings. Entries must be enclosed in single or double quotes
-# separted by commas. The generator only supports up to 8 checkpoints per lab.
+# separted by commas. The generator only supports up to 16 checkpoints per lab.
+# Checkpoint labels cannot be longer than 20 characters each.
 lab1 = ['A', 'B5', 'C1', 'C2']
 lab2 = ['B5', 'B6', 'Part C7']
 lab3 = ['A7b', 'B7', 'B8/B9', 'B12']
