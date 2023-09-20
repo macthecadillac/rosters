@@ -12,17 +12,18 @@ use crate::error;
 
 pub const NGROUPS: usize = 6;
 pub const MAXGROUPSIZE: usize = 7;
-pub const MAXNAMELEN: usize = 40;
+pub const MAXNAMELEN: usize = 50;
 pub const LABSTRMAXLEN: usize = 10;
 const TARGETGROUPSIZE: usize = 5;
-const MAXCHECKPOINTS: usize = 8;
+const MAXCHECKPOINTS: usize = 16;
+const MAXSECTION: usize = 20;
 const MAXCHECKPOINTLEN: usize = 20;
 
 
 #[derive(Deserialize, Debug)]
 pub struct Config {
     #[serde(rename="ta-assignment")]
-    pub ta_assignment: Option<HashMap<TA, ArrayVec<Section, MAXCHECKPOINTS>>>,
+    pub ta_assignment: Option<HashMap<TA, ArrayVec<Section, MAXSECTION>>>,
     pub checkpoints: Option<HashMap<Lab, ArrayVec<Checkpoint, MAXCHECKPOINTS>>>,
 }
 
