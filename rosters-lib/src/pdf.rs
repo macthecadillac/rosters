@@ -9,17 +9,24 @@ use std::collections::HashSet;
 use crate::data::{Checkpoint, Lab, Name, Roster, Section};
 use crate::error::Error;
 
+/// Embedded regular font. This font will be embedded into the PDF we generate
 const REGULAR_FONT: &'static [u8] = std::include_bytes!("../fonts/Carlito-Regular.ttf");
+/// Embedded bold font. This font will be embedded into the PDF we generate
 const BOLD_FONT: &'static [u8] = std::include_bytes!("../fonts/Carlito-Bold.ttf");
 
+/// Width of a standard letter-sized page
 const PAGEWIDTH: Length = Length(215.9);   // 8.5 in
+/// Height of a standard letter-sized page
 const PAGEHEIGHT: Length = Length(279.4);  // 11 in
+/// Page margins
 const MARGINS: Length = Length(20.32);     // 0.85 in
+/// Font size
 const FONTSIZE: f64 = 11.;
 
+/// Alias of two font types
 #[derive(Copy, Clone, Eq, PartialEq)]
 #[allow(dead_code)]
-pub enum Font { Regular, Bold }
+pub(crate) enum Font { Regular, Bold }
 
 impl Into<&'static [u8]> for Font {
     fn into(self) -> &'static [u8] {
@@ -30,10 +37,12 @@ impl Into<&'static [u8]> for Font {
     }
 }
 
+/// Auto width calculation vs. a user provided width
 #[derive(Copy, Clone)]
 enum Width { Auto, Manual(Length) }
 
 impl Width {
+    /// Calculates the actual width of a textbox
     fn width(self, text: &str, font: Font, size: f64) -> Result<Length, Error> {
         match self {
             Width::Auto => {
@@ -52,6 +61,7 @@ impl Width {
     }
 }
 
+/// A Cartesian vector struct
 #[derive(Add, Copy, Clone, Sub)]
 struct Vector { x: Length, y: Length }
 
@@ -62,18 +72,23 @@ impl Into<printpdf::Point> for Vector {
 }
 
 impl Vector {
+    /// Calculate the vector that points to the a given point from the upper-left corner
     fn from_ul(x: Length, y: Length) -> Self {
         Vector { x: x + MARGINS, y: MARGINS + y }
     }
 
+    /// The x-coordinates
     fn x(self) -> Mm { self.x.into() }
 
+    /// The y-coordinates
     fn y(self) -> Mm { (Length::from_in(11.) - self.y).into() }
 }
 
+/// Direction of a line
 #[derive(Copy, Clone)]
 enum Direction { Horizontal, Vertical }
 
+/// A set of instructions for drawing straight lines
 #[derive(Copy, Clone)]
 struct Line {
     anchor: Vector,
@@ -84,6 +99,7 @@ struct Line {
 }
 
 impl Line {
+    /// Render the line onto the PDF
     fn render(&self, layer_ref: &PdfLayerReference) {
         let start = Vector {
             x: self.anchor.x,
@@ -115,32 +131,40 @@ impl Line {
     }
 }
 
+/// Calculate the line height of a given font size for the embedded font
 fn line_height(size: f64) -> Result<Length, Error> {
     let face = Face::parse(REGULAR_FONT, 0)?;
     Ok(Length::from_pt(size) * face.height() as f64 / 2048.)
 }
 
+/// The memory representation of a unit-agnostic length
 #[derive(Add, AddAssign, Clone, Copy, Debug, From, Mul, Default, Div, PartialEq, PartialOrd, Sub, SubAssign, Sum)]
-pub struct Length(f64);
+pub(crate) struct Length(f64);
 
 impl Into<Mm> for Length {
     fn into(self) -> Mm { Mm(self.0) }
 }
 
 impl Length {
+    /// Convert inches to `Length`
     fn from_in(l: f64) -> Length { Length(l * 25.4) }
+    /// Convert millimeters to `Length`
     fn from_mm(l: f64) -> Length { Length(l) }
+    /// Convert points to `Length`
     fn from_pt(l: f64) -> Length { Length(l * 0.34) }
+    /// Convert `Length` to points
     fn to_pt(self) -> f64 { self.0 / 0.34 }
 }
 
+/// A struct that holds pointers to the fonts within the PDF file
 #[derive(Copy, Clone)]
-pub struct FontRef<'a> {
-    pub regular: &'a IndirectFontRef,
-    pub bold: &'a IndirectFontRef
+pub(crate) struct FontRef<'a> {
+    pub(crate) regular: &'a IndirectFontRef,
+    pub(crate) bold: &'a IndirectFontRef
 }
 
 impl<'a> FontRef<'a> {
+    /// Given a `Font`, return a PDF font reference
     fn pick(self, font: Font) -> &'a IndirectFontRef {
         match font {
             Font::Regular => self.regular,
@@ -149,6 +173,7 @@ impl<'a> FontRef<'a> {
     }
 }
 
+/// A set of instructions for rendering text
 struct Text {
     str: String,
     anchor: Vector,  // upper left corner
@@ -157,6 +182,7 @@ struct Text {
 }
 
 impl Text {
+    /// Render the text onto the PDF file
     fn render(&self, layer_ref: &PdfLayerReference, font_ref: FontRef)
         -> Result<(), Error> {
         let text_height = line_height(self.size)?.into();
@@ -166,20 +192,31 @@ impl Text {
     }
 }
 
+/// A representation of a column in the PDF file
 #[derive(Copy, Clone, Default, Debug)]
-struct Column { left: Length, right: Length }
+struct Column {
+    /// The x-coordinates of the left margin of a column
+    left: Length,
+    /// The x-coordinates of the right margin of a column
+    right: Length
+}
 
 impl Column {
+    /// Calculates the relative coordinates of the left edge of a given piece of text if the text
+    /// is to be centered in the column
     fn anchor_center(self, text: &str, font: Font, size: f64) -> Result<Length, Error> {
         let width = Width::Auto.width(text, font, size)?;
         Ok(self.left + (self.right - self.left - width) * 0.5)
     }
 
+    /// Calculates the relative coordinates of the left edge of a given piece of text if the text
+    /// is to be aligned to the left edge of the column
     fn anchor_left(self, size: f64) -> Length {
         self.left + Length::from_pt(size / FONTSIZE * 6.)
     }
 }
 
+/// A set of instructions for rendering a full page
 #[derive(Default)]
 struct Page {
     columns: Vec<Column>,
@@ -193,6 +230,7 @@ struct Page {
 }
 
 impl Page {
+    /// Render the page onto the PDF file
     fn render(&self, pdf_document: &mut PdfDocumentReference, font_ref: FontRef)
         -> Result<(), Error> {
         let (page, layer) = pdf_document.add_page(PAGEWIDTH.into(),
@@ -208,6 +246,7 @@ impl Page {
         Ok(())
     }
 
+    /// Return the set of glyphs present on the page. This is needed for font subsetting.
     fn glyphs(&self, font: Font) -> Result<HashSet<GlyphId>, Error> {
         let face = Face::parse(font.into(), 0)?;
         Ok(self.text.iter()
@@ -217,6 +256,7 @@ impl Page {
             .collect())
     }
 
+    /// Add a header to the page
     fn add_header(&mut self, lab: Lab, section: Section,
                   checkpoints: &[Checkpoint]) -> Result<(), Error> {
         let text_width = PAGEWIDTH - MARGINS * 2.;
@@ -315,6 +355,7 @@ impl Page {
         Ok(())
     }
 
+    /// Add a group to the roster on the page
     fn add_group(&mut self, group: usize, students: &[&Name]) -> Result<(), Error> {
         let y0 = self.table_height;
         let size = self.font_size;
@@ -375,6 +416,7 @@ impl Page {
         Ok(())
     }
 
+    /// Add vertical lines to the page
     fn add_vertical_lines(&mut self) {
         for column in self.columns.iter().skip(1) {
             let x = column.left;
@@ -403,14 +445,19 @@ impl Page {
     }
 }
 
+/// A set of instructions for a full PDF document
 #[derive(Default)]
-pub struct Document {
+pub(crate) struct Document {
+    /// Pages within the document
     pages: Vec<Page>,
+    /// Glyphs that need to be rendered with the regular font
     regular_glyphs: HashSet<u16>,
+    /// Glyphs that need to be rendered with the bold font
     bold_glyphs: HashSet<u16>,
 }
 
 impl Document {
+    /// Compute the font size based on the number of lines that needs to be rendered onto the page
     fn compute_font_size(&self, roster: &Roster) -> Result<f64, Error> {
         let face = Face::parse(REGULAR_FONT, 0)?;
         let ngroups = roster.ngroups();
@@ -425,7 +472,8 @@ impl Document {
         Ok(if font_size <= FONTSIZE { font_size } else { FONTSIZE })
     }
 
-    pub fn add_page(&mut self, roster: &Roster, lab: Lab, checkpoints: &[Checkpoint])
+    /// Add a page to the document
+    pub(crate) fn add_page(&mut self, roster: &Roster, lab: Lab, checkpoints: &[Checkpoint])
         -> Result<(), Error> {
         let mut page = Page::default();
         page.font_size = self.compute_font_size(roster)?;
@@ -442,7 +490,8 @@ impl Document {
         Ok(())
     }
 
-    pub fn font_subset(&self, font: Font) -> Result<Vec<u8>, Error> {
+    /// Perform font subsetting to minimize PDF size
+    pub(crate) fn font_subset(&self, font: Font) -> Result<Vec<u8>, Error> {
         let glyphs = match font {
             Font::Regular => &self.regular_glyphs,
             Font::Bold => &self.bold_glyphs
@@ -452,7 +501,8 @@ impl Document {
         Ok(font)
     }
 
-    pub fn render(&self, pdf_document: &mut PdfDocumentReference, font_ref: FontRef)
+    /// Render the document into a PDF file
+    pub(crate) fn render(&self, pdf_document: &mut PdfDocumentReference, font_ref: FontRef)
         -> Result<(), Error> {
         for page in self.pages.iter() {
             page.render(pdf_document, font_ref)?;

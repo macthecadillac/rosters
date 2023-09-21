@@ -2,9 +2,10 @@ use arrayvec::ArrayString;
 use derive_more::{Display, Error, From};
 use crate::data::{LABSTRMAXLEN, MAXGROUPSIZE, MAXNAMELEN, NGROUPS, Section};
 
+/// The Error type
 #[derive(Debug, Display, From, Error)]
 #[error(ignore)]  // don't derive backtrace/source
-pub enum Error {
+pub(crate) enum Error {
     #[display(fmt="name not formatted as 'last, first': {}", _0)]
     #[from(ignore)]
     ParseNameError(ArrayString<MAXNAMELEN>),
@@ -19,7 +20,7 @@ pub enum Error {
     IOError(std::io::Error),
     XlsxError(rust_xlsxwriter::XlsxError),
     #[display(fmt="section size of over {} is not supported", "MAXGROUPSIZE * NGROUPS")]
-    SectionSizeError(arrayvec::CapacityError<()>),
+    SectionSizeError,
     #[display(fmt="the name \"{}\" is too long and overflowed the stack", _0)]
     #[from(ignore)]
     NameTooLongError(String),

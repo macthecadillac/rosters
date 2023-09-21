@@ -59,7 +59,7 @@ Lyndon = [37, 39]
 [checkpoints]
 # LHS must be in the form of "lab" followed by an integer.
 # RHS is a list of strings. Entries must be enclosed in single or double quotes
-# separted by commas. The generator only supports up to 16 checkpoints per lab.
+# separted by commas. The generator only supports up to 10 checkpoints per lab.
 # Checkpoint labels cannot be longer than 20 characters each.
 lab1 = ['A', 'B5', 'C1', 'C2']
 lab2 = ['B5', 'B6', 'Part C7']
@@ -80,4 +80,5 @@ Compiling from source requires the following build tools:
 |Rust| >= 1.70 |
 
 With these tools properly installed, run `cargo install --path .` from the root
-directory of the project.
+directory of the project. This should build against both the MSVC and GNU
+toolchains.

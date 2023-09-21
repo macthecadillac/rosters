@@ -1,15 +1,19 @@
 use crate::data::{Lab, Roster, Section};
 use crate::error::Error;
 
+use std::path::PathBuf;
+
 use rust_xlsxwriter::{Color, Format};
 
+/// Workbook struct
 #[derive(Default)]
-pub struct Workbook {
-    pub data: rust_xlsxwriter::Workbook
+pub(crate) struct Workbook {
+    data: rust_xlsxwriter::Workbook
 }
 
 impl Workbook {
-    pub fn initialize(&mut self, lab: Lab, sections: &[Section])
+    /// Initialize Excel workbook
+    pub(crate) fn initialize(&mut self, lab: Lab, sections: &[Section])
         -> Result<(), crate::error::Error> {
         let sheet = self.data.add_worksheet();
         sheet.write_string(0, 0, format!("Lab {}", lab))?;
@@ -20,7 +24,8 @@ impl Workbook {
         Ok(())
     }
 
-    pub fn add_sheet(&mut self, roster: &Roster) -> Result<(), Error> {
+    /// Add sheet to Excel workbook
+    pub(crate) fn add_sheet(&mut self, roster: &Roster) -> Result<(), Error> {
         let sheet = self.data.add_worksheet();
         sheet.set_name(format!("section {}", roster.section))?;
         let red_text = Format::new().set_font_color(Color::Red).set_bold();
@@ -45,6 +50,12 @@ impl Workbook {
                 row += 1;
             }
         }
+        Ok(())
+    }
+
+    /// Save Excel workbook
+    pub(crate) fn save(&mut self, path: PathBuf) -> Result<(), Error> {
+        self.data.save(path)?;
         Ok(())
     }
 }

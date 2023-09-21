@@ -11,22 +11,30 @@ use std::io::BufWriter;
 use std::path::PathBuf;
 use std::str::FromStr;
 
-pub mod data;
-pub mod error;
-pub mod pdf;
-pub mod xlsx;
+/// Data representation
+mod data;
+/// Error types
+mod error;
+/// PDF generation
+mod pdf;
+/// XLSX generation
+mod xlsx;
 
 use data::{Checkpoint, Config, Lab, Roster};
 
+/// Starter configuration file that is embedded into the executable. This is saved as a file when
+/// the user calls `rosters config`.
 pub const EXAMPLE_CONFIG: &'static str = std::include_str!("../example_config.toml");
 
-pub enum DataStream<'a, T> where T: Iterator<Item=&'a Roster<'a>> {
+/// Convenience struct for data consumption
+enum DataStream<'a, T> {
     Many { rosters: T, tag: &'a str },
     One { roster: &'a Roster<'a> }
 }
 
-pub fn write_pdf<'a, T>(lab: Lab, checkpoints: &[Checkpoint], data: DataStream<'a, T>,
-                        pdf_dir: &PathBuf)
+/// Generate and write roster PDF to file
+fn write_pdf<'a, T>(lab: Lab, checkpoints: &[Checkpoint], data: DataStream<'a, T>,
+                    pdf_dir: &PathBuf)
     -> Result<(), error::Error>
     where T: Iterator<Item=&'a Roster<'a>> {
     let mut pdf = pdf::Document::default();
@@ -55,8 +63,9 @@ pub fn write_pdf<'a, T>(lab: Lab, checkpoints: &[Checkpoint], data: DataStream<'
     Ok(())
 }
 
-pub fn write_xlsx<'a>(base_dir: &PathBuf, lab: Lab,
-                      rosters: &[Roster]) -> Result<(), error::Error> {
+/// Generate and write roster data to Excel file
+fn write_xlsx<'a>(base_dir: &PathBuf, lab: Lab,
+                  rosters: &[Roster]) -> Result<(), error::Error> {
     let mut workbook = xlsx::Workbook::default();
     let sections: Vec<_> = rosters.iter().map(|x| x.section).collect();
     workbook.initialize(lab.into(), &sections)?;
@@ -72,10 +81,11 @@ pub fn write_xlsx<'a>(base_dir: &PathBuf, lab: Lab,
             if !path.exists() { break }
         }
     }
-    workbook.data.save(path)?;
+    workbook.save(path)?;
     Ok(())
 }
 
+/// Main entry of the library
 pub fn generate(input: PathBuf,
                 output: Option<PathBuf>,
                 lab: usize,
