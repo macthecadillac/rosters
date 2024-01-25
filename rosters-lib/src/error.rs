@@ -15,7 +15,7 @@ pub(crate) enum Error {
     UnknownLabNumber(std::num::ParseIntError),
     #[display(fmt="section {} does not exist in the input data. Check your configuration/input data.", _0)]
     #[from(ignore)]
-    NonexistantSection(Section),
+    NonexistentSection(Section),
     PdfError(printpdf::Error),
     IOError(std::io::Error),
     XlsxError(rust_xlsxwriter::XlsxError),

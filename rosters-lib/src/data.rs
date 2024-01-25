@@ -13,7 +13,7 @@ use crate::error;
 /// The maximum number of groups per lab. This is obviously a hard limit, given two lab rooms only
 /// have 6 benches in them.
 pub(crate) const NGROUPS: usize = 6;
-/// The maximum number of students in per group. This is a physical constraint since lab rooms
+/// The maximum number of students per group. This is a physical constraint since lab rooms
 /// literally cannot hold that many people, not unless the department spends money it does not have
 /// to uprgade them.
 pub(crate) const MAXGROUPSIZE: usize = 7;
@@ -76,8 +76,13 @@ fn deserialize_section<'de, D>(deserializer: D) -> Result<usize, D::Error>
     where D: Deserializer<'de>, {
     let res = match Union::deserialize(deserializer).map_err(D::Error::custom)? {
         Union::S(v) => {
+            // Canvas formats sections as "PHYS 1XL - NNN [XXXXXX]" where NNN is the section number
+            // For example: "PHYS 1CL - 002 [331507]"
+            // Try to split the section string by whitespace and take the second to last item,
+            // which is NNN
             v.split_whitespace().rev().skip(1).next()
              .ok_or(D::Error::custom("unrecognized string"))?
+             // Try to parse NNN as an integer
              .parse::<usize>()
              .map_err(|m| D::Error::custom(m))?
         },
@@ -101,7 +106,10 @@ pub(crate) struct Lab(usize);
 impl TryFrom<ArrayString<LABSTRMAXLEN>> for Lab {
     type Error = error::Error;
     fn try_from(str: ArrayString<LABSTRMAXLEN>) -> Result<Self, error::Error> {
+        // Lab numbers must be formatted as "lab#" where "#" is an integer
         if str.bytes().zip(b"lab".iter()).all(|(a, &b)| a == b) {
+            // If the first three chars are exactly "lab", read the following chars and try to
+            // parse them as one integer
             Ok(Lab(str.as_str()[3..].parse()?))
         } else {
             Err(error::Error::UnknownLabPrefix(str))
@@ -127,6 +135,7 @@ pub(crate) struct Name {
 impl TryFrom<ArrayString<MAXNAMELEN>> for Name {
     type Error = error::Error;
     fn try_from(str: ArrayString<MAXNAMELEN>) -> Result<Self, error::Error> {
+        // Canvas names are formatted as "Last, First"
         let name_parts: Vec<_> = str.split(',').collect();
         match &name_parts[..] {
             &[l, f] => {
@@ -174,6 +183,8 @@ fn ceil_div(a: usize, b: usize) -> usize { (a + b - 1) / b }
 impl<'a> Iterator for Groups<'a> {
     type Item = &'a [&'a Name];
     fn next(&mut self) -> Option<Self::Item> {
+        // size is always (TARGETGROUPSIZE - 1) or more unless the number of students is less than
+        // two groups full
         let size = ceil_div(self.names.len() - self.group, self.ngroups);
         let start = self.start;
         self.start += size;

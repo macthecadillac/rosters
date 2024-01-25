@@ -129,7 +129,7 @@ pub fn generate(input: PathBuf,
             ta_assignment.par_iter().try_for_each(|(ta, sections)| {
                 let rosters = sections.iter()
                     .map(|&section| rosters.iter().find(|&r| r.section == section)
-                        .ok_or(error::Error::NonexistantSection(section)))
+                        .ok_or(error::Error::NonexistentSection(section)))
                     .collect::<Result<Vec<_>, _>>()?
                     .into_iter();
                 let data_stream = DataStream::Many { rosters, tag: ta.as_ref() };
