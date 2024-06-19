@@ -6,7 +6,7 @@ use subsetter::{subset, Profile};
 
 use std::collections::HashSet;
 
-use crate::data::{Checkpoint, Lab, Name, Roster, Section};
+use crate::data::{Checkpoint, Lab, Student, Roster, Section};
 use crate::error::Error;
 
 /// Embedded regular font. This font will be embedded into the PDF we generate
@@ -356,7 +356,7 @@ impl Page {
     }
 
     /// Add a group to the roster on the page
-    fn add_group(&mut self, group: usize, students: &[&Name]) -> Result<(), Error> {
+    fn add_group(&mut self, group: usize, students: &[Student]) -> Result<(), Error> {
         let y0 = self.table_height;
         let size = self.font_size;
         let line_height = line_height(size)?;
@@ -461,7 +461,7 @@ impl Document {
     fn compute_font_size(&self, roster: &Roster) -> Result<f64, Error> {
         let face = Face::parse(REGULAR_FONT, 0)?;
         let ngroups = roster.ngroups();
-        let nrows = roster.names.len();
+        let nrows = roster.students.len();
         let th = PAGEHEIGHT - MARGINS * 2.;
         let group_sep = Length::from_pt(1.3) * (ngroups - 1) as f64;
         let name_sep = Length::from_pt(1.) * (nrows - ngroups - 1) as f64;
