@@ -1,10 +1,11 @@
 [workspace]
 members = ["rosters-lib", "rosters-windows-gui", "rosters-cli"]
 default-members = ["rosters-cli"]
+resolver = "2"
 
 [workspace.package]
 authors = ["Mac Lee"]
-version = "2.0.0"
+version = "2.1.0"
 edition = "2021"
 description = "Generate rosters for 1-series labs"
 license-file = "LICENSE"

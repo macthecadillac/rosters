@@ -5,8 +5,9 @@ use printpdf::{BlendMode, Color, Cmyk, IndirectFontRef, LineCapStyle, Mm,
 use subsetter::{subset, Profile};
 
 use std::collections::HashSet;
+use std::iter;
 
-use crate::data::{Checkpoint, Lab, Name, Roster, Section};
+use crate::data::{Checkpoint, Lab, Roster, Section, Student};
 use crate::error::Error;
 
 /// Embedded regular font. This font will be embedded into the PDF we generate
@@ -138,7 +139,8 @@ fn line_height(size: f64) -> Result<Length, Error> {
 }
 
 /// The memory representation of a unit-agnostic length
-#[derive(Add, AddAssign, Clone, Copy, Debug, From, Mul, Default, Div, PartialEq, PartialOrd, Sub, SubAssign, Sum)]
+#[derive(Add, AddAssign, Clone, Copy, Debug, From, Mul, Default, Div,
+         PartialOrd, PartialEq, Sub, SubAssign, Sum)]
 pub(crate) struct Length(f64);
 
 impl Into<Mm> for Length {
@@ -258,7 +260,8 @@ impl Page {
 
     /// Add a header to the page
     fn add_header(&mut self, lab: Lab, section: Section,
-                  checkpoints: &[Checkpoint]) -> Result<(), Error> {
+                  checkpoints: &[Checkpoint],
+                  roster: &Roster) -> Result<(), Error> {
         let text_width = PAGEWIDTH - MARGINS * 2.;
         let size = self.font_size;
         let line_height = line_height(size)?;
@@ -304,10 +307,19 @@ impl Page {
         let left_header_text = [(Width::Manual(Length::from_mm(20.)), "Signature"),
                                 (Width::Auto, "Late"),
                                 (Width::Auto, "Group")];
-        let right_header_text: Vec<_> = checkpoints.iter()
+        let right_header_ = checkpoints.iter()
             .map(|x| (Width::Auto, x.as_ref()))
-            .chain([(Width::Auto, "Signed")].into_iter())
-            .collect();
+            .chain([(Width::Auto, "Signed")].into_iter());
+        let right_header_text: Vec<_> = if roster.name_clash {
+            let lens: Vec<_> = roster.students.iter()
+                .map(|s| Width::Auto.width(&s.sid.0, Font::Regular, size))
+                .collect::<Result<_, _>>()?;
+            let len = lens.iter().fold(0., |a, &b| f64::max(a, b.0));
+            iter::once((Width::Manual(Length(len)), "SID"))
+                .chain(right_header_).collect()
+        } else {
+            right_header_.collect()
+        };
         let lwidths: Vec<Length> = left_header_text.iter()
             .map(|(w, x)| w.width(x, Font::Bold, size))
             .collect::<Result<Vec<_>, _>>()?
@@ -356,7 +368,8 @@ impl Page {
     }
 
     /// Add a group to the roster on the page
-    fn add_group(&mut self, group: usize, students: &[&Name]) -> Result<(), Error> {
+    fn add_group(&mut self, group: usize, students: &[Student],
+                 show_sid: bool) -> Result<(), Error> {
         let y0 = self.table_height;
         let size = self.font_size;
         let line_height = line_height(size)?;
@@ -364,12 +377,19 @@ impl Page {
         let bottom_padding = Length::from_pt(size / FONTSIZE * 5.);
         let group_col = self.columns[2];
         let student_col = self.columns[3];
+        let sid_col = if show_sid { Some(self.columns[4]) } else { None };
         let group_size = students.len();
+        let stdt_anchor = student_col.anchor_left(size);
         for (n, student) in students.iter().enumerate() {
-            let text = format!("{}", student);
-            let x = student_col.anchor_left(size);
-            self.text.push(Text { str: text, size, font: Font::Regular,
-                anchor: Vector::from_ul(x, self.table_height) });
+            let name = format!("{}", student.name);
+            self.text.push(Text { str: name, size, font: Font::Regular,
+                anchor: Vector::from_ul(stdt_anchor, self.table_height) });
+            if show_sid {
+                let sid = format!("{}", student.sid);
+                let anchor = sid_col.unwrap().anchor_center(&sid, Font::Regular, size)?;
+                self.text.push(Text { str: sid, size, font: Font::Regular,
+                    anchor: Vector::from_ul(anchor, self.table_height) });
+            }
             self.table_height += line_height + bottom_padding;
             let bottom_line = Line {
                 anchor: Vector::from_ul(Length::default(), self.table_height),
@@ -461,7 +481,7 @@ impl Document {
     fn compute_font_size(&self, roster: &Roster) -> Result<f64, Error> {
         let face = Face::parse(REGULAR_FONT, 0)?;
         let ngroups = roster.ngroups();
-        let nrows = roster.names.len();
+        let nrows = roster.students.len();
         let th = PAGEHEIGHT - MARGINS * 2.;
         let group_sep = Length::from_pt(1.3) * (ngroups - 1) as f64;
         let name_sep = Length::from_pt(1.) * (nrows - ngroups - 1) as f64;
@@ -479,9 +499,9 @@ impl Document {
         page.font_size = self.compute_font_size(roster)?;
         page.ngroups = roster.ngroups();
         page.title = format!("Section {}", roster.section);
-        page.add_header(lab, roster.section, checkpoints)?;
+        page.add_header(lab, roster.section, checkpoints, roster)?;
         for (group, students) in roster.groups().enumerate() {
-            page.add_group(group + 1, students)?;
+            page.add_group(group + 1, students, roster.name_clash)?;
         }
         page.add_vertical_lines();
         self.regular_glyphs.extend(page.glyphs(Font::Regular)?.into_iter().map(|g| g.0));

@@ -6,7 +6,7 @@ use serde::{Deserialize, Deserializer};
 use serde::de::Error;
 
 use std::fmt::{Display, Formatter};
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 
 use crate::error;
 
@@ -38,6 +38,8 @@ const MAXSECTION: usize = 20;
 /// The maximum number of chars a checkpoint label could have. This is obvious an overkill since
 /// anything more than 10 chars would serious disrupt the layout algorithm.
 const MAXCHECKPOINTLEN: usize = 20;
+/// The number of chars a student ID has
+const SIDLEN: usize = 9;
 
 
 /// This defines the configuration file format. The configuration consists of two sections:
@@ -59,8 +61,13 @@ pub(crate) struct Record {
     #[serde(rename(deserialize="Section"))]
     section: Section,
     #[serde(rename(deserialize="Student"))]
-    student: Name
+    name: Name,
+    #[serde(rename(deserialize="SIS User ID"))]
+    sid: SID
 }
+
+#[derive(Clone, Copy, Debug, Deserialize, Display, Eq, From, Into, Hash, Ord, PartialEq, PartialOrd)]
+pub (crate)struct SID(pub(crate) ArrayString<SIDLEN>);
 
 /// In memory representation of a lab section
 #[derive(Clone, Copy, Debug, Deserialize, Display, Eq, From, Into, Hash, Ord, PartialEq, PartialOrd)]
@@ -125,7 +132,7 @@ impl TryFrom<ArrayString<LABSTRMAXLEN>> for Lab {
 pub(crate) struct Checkpoint(ArrayString<MAXCHECKPOINTLEN>);
 
 /// A statically/stack allocated representation of a student's name.
-#[derive(Clone, Debug, Deserialize, Eq, Ord, PartialEq, PartialOrd)]
+#[derive(Clone, Debug, Deserialize, Eq, Hash, Ord, PartialEq, PartialOrd)]
 #[serde(try_from="ArrayString<MAXNAMELEN>")]
 pub(crate) struct Name {
     first: ArrayString<MAXNAMELEN>,
@@ -157,20 +164,27 @@ impl Display for Name {
     }
 }
 
+#[derive(Clone, Debug, Hash)]
+pub (crate)struct Student<'a> {
+    pub(crate) name: &'a Name,
+    pub(crate) sid: &'a SID
+}
+
 /// The representation of a roster
 #[derive(Clone, Debug)]
 pub(crate) struct Roster<'a> {
     /// Lab section
     pub(crate) section: Section,
     /// List of students enrolled in the section
-    pub(crate) names: ArrayVec<&'a Name, {MAXGROUPSIZE * NGROUPS}>,
+    pub(crate) students: ArrayVec<Student<'a>, {MAXGROUPSIZE * NGROUPS}>,
+    pub(crate) name_clash: bool
 }
 
 /// An iterator of groups within a section. A group is a set of students assigned to the same lab
 /// bench.
 #[derive(Clone, Debug)]
 pub(crate) struct Groups<'a> {
-    names: &'a [&'a Name],
+    students: &'a [Student<'a>],
     ngroups: usize,
     start: usize,
     group: usize
@@ -181,27 +195,27 @@ pub(crate) struct Groups<'a> {
 fn ceil_div(a: usize, b: usize) -> usize { (a + b - 1) / b }
 
 impl<'a> Iterator for Groups<'a> {
-    type Item = &'a [&'a Name];
+    type Item = &'a [Student<'a>];
     fn next(&mut self) -> Option<Self::Item> {
         // size is always (TARGETGROUPSIZE - 1) or more unless the number of students is less than
         // two groups full
-        let size = ceil_div(self.names.len() - self.group, self.ngroups);
+        let size = ceil_div(self.students.len() - self.group, self.ngroups);
         let start = self.start;
         self.start += size;
         self.group += 1;
-        self.names.get(start..start + size)
+        self.students.get(start..start + size)
     }
 }
 
 impl<'a> Roster<'a> {
     /// The number of groups we need to have in a section
     pub(crate) fn ngroups(&self) -> usize {
-        Ord::min(NGROUPS, ceil_div(self.names.len(), TARGETGROUPSIZE))
+        Ord::min(NGROUPS, ceil_div(self.students.len(), TARGETGROUPSIZE))
     }
 
     /// Returns an iterator over groups of students
     pub(crate) fn groups(&'a self) -> Groups<'a> {
-        Groups { ngroups: self.ngroups(), names: self.names.as_slice(), start: 0, group: 0 }
+        Groups { ngroups: self.ngroups(), students: self.students.as_slice(), start: 0, group: 0 }
     }
 
     /// Creates a vec of rosters from a given set of record entries
@@ -213,12 +227,15 @@ impl<'a> Roster<'a> {
             .group_by(|record| record.section)
             .into_iter()
             .map(|(section, list)| {
-                let mut names = ArrayVec::new();
+                let mut students = ArrayVec::new();
                 for item in list {
-                    names.try_push(&item.student).map_err(|_| error::Error::SectionSizeError)?;
+                    let student = Student { name: &item.name, sid: &item.sid };
+                    students.try_push(student).map_err(|_| error::Error::SectionSizeError)?;
                 }
-                names.shuffle(&mut rng);
-                Ok(Roster { section, names })
+                students.shuffle(&mut rng);
+                let unique_names = students.iter().map(|r| &r.name).collect::<HashSet<_>>();
+                let name_clash = unique_names.len() != students.len();
+                Ok(Roster { section, students, name_clash })
             })
             .collect()
     }

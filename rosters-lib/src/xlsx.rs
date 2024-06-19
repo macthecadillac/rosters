@@ -42,11 +42,15 @@ impl Workbook {
         for (i, s) in ["Signature", "Late", "Group", "Student"].into_iter().enumerate() {
             sheet.write_string(row, i as u16, s)?;
         }
+        if roster.name_clash { sheet.write_string(row, 4, "SID")?; }
         row += 1;
         for (group, students) in roster.groups().enumerate() {
             for student in students.iter() {
                 sheet.write_number_with_format(row, 2, group as f64 + 1., &num_fmt)?;
-                sheet.write_string(row, 3, format!("{}", student))?;
+                sheet.write_string(row, 3, format!("{}", student.name))?;
+                if roster.name_clash {
+                    sheet.write_string(row, 4, format!("{}", student.sid))?;
+                }
                 row += 1;
             }
         }
