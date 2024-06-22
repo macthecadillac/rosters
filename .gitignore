@@ -14,3 +14,4 @@ lib/src/rust_bindgen.ml*
 *.sig
 *.zip
 SHA512SUMS
+*.html

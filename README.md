@@ -153,5 +153,4 @@ Compiling from source requires the following build tools:
 |Rust| >= 1.70 |
 
 With these tools properly installed, run `cargo install --path .` from the root
-directory of the project. The Windows port should build against both the MSVC
-and GNU toolchains.
+directory of the project. The Windows port builds against the MinGW toolchain.

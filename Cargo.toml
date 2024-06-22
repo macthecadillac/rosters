@@ -5,7 +5,7 @@ resolver = "2"
 
 [workspace.package]
 authors = ["Mac Lee"]
-version = "2.1.0"
+version = "2.1.1"
 edition = "2021"
 description = "Generate rosters for 1-series labs"
 license-file = "LICENSE"

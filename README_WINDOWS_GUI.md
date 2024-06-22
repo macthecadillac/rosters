@@ -80,5 +80,5 @@ Compiling from source requires the following build tools:
 |Rust| >= 1.70 |
 
 With these tools properly installed, run `cargo install --path .` from the root
-directory of the project. This should build against both the MSVC and GNU
-toolchains.
+directory of the project. This is only tested with the MinGW toolchain. It
+should theoretically work with the MSVC toolchain as well.
