@@ -12,6 +12,25 @@ use std::env;
 use std::fs;
 use std::path::PathBuf;
 
+const STANDARD_DPI: i32 = 96;
+
+struct DpiAwareSize(i32);
+
+impl Into<i32> for DpiAwareSize {
+    fn into(self) -> i32 {
+        let dpi = unsafe { native_windows_gui::dpi() };
+        self.0 * dpi / STANDARD_DPI
+    }
+}
+
+struct DpiAwareSizeTuple(i32, i32);
+
+impl Into<(i32, i32)> for DpiAwareSizeTuple {
+    fn into(self) -> (i32, i32) {
+        (DpiAwareSize(self.0).into(), DpiAwareSize(self.1).into())
+    }
+}
+
 #[derive(Deserialize, Debug, Serialize)]
 enum SerdeCheckBoxState { Checked, Unchecked, Indeterminate }
 
@@ -48,16 +67,18 @@ struct PreviousState {
 #[derive(Default, NwgUi)]
 pub struct App {
     #[nwg_control(title: &format!("Roster Generator v{}", env!("CARGO_PKG_VERSION")),
-                  size: (520, 222),
+                  size: DpiAwareSizeTuple(520, 222).into(),
                   flags: "WINDOW|VISIBLE")]
     #[nwg_events(OnWindowClose: [App::exit])]
     window: Window,
 
-    #[nwg_control(text: "Canvas data:", position: (0, 14), size: (91, 25),
+    #[nwg_control(text: "Canvas data:",
+                  position: DpiAwareSizeTuple(0, 14).into(),
+                  size: DpiAwareSizeTuple(91, 25).into(),
                   h_align: HTextAlign::Right)]
     input_label: Label,
 
-    #[nwg_control(position: (99, 11), size: (333, 20))]
+    #[nwg_control(position: DpiAwareSizeTuple(99, 11).into(), size: DpiAwareSizeTuple(333, 20).into())]
     input: TextInput,
 
     #[nwg_resource(
@@ -67,31 +88,41 @@ pub struct App {
     )]
     input_file_dialog: FileDialog,
 
-    #[nwg_control(text: "Select", position: (440, 9), size: (72, 23))]
+    #[nwg_control(text: "Select",
+                  position: DpiAwareSizeTuple(440, 9).into(),
+                  size: DpiAwareSizeTuple(72, 23).into())]
     #[nwg_events(OnButtonClick: [App::open_csv])]
     input_file_picker_button: Button,
 
-    #[nwg_control(text: "Output folder:", position: (0, 41), size: (91, 25),
+    #[nwg_control(text: "Output folder:",
+                  position: DpiAwareSizeTuple(0, 41).into(),
+                  size: DpiAwareSizeTuple(91, 25).into(),
                   h_align: HTextAlign::Right)]
     output_label: Label,
 
     #[nwg_control(placeholder_text: Some("<optional>"),
-                  position: (99, 39), size: (333, 20))]
+                  position: DpiAwareSizeTuple(99, 39).into(),
+                  size: DpiAwareSizeTuple(333, 20).into())]
     output: TextInput,
 
     #[nwg_resource(title: "Open Folder", action: FileDialogAction::OpenDirectory)]
     output_directory_dialog: FileDialog,
 
-    #[nwg_control(text: "Select", position: (440, 36), size: (72, 23))]
+    #[nwg_control(text: "Select",
+                  position: DpiAwareSizeTuple(440, 36).into(),
+                  size: DpiAwareSizeTuple(72, 23).into())]
     #[nwg_events(OnButtonClick: [App::open_dir])]
     output_file_picker_button: Button,
 
-    #[nwg_control(text: "Config file:", position: (0, 68), size: (91, 25),
+    #[nwg_control(text: "Config file:",
+                  position: DpiAwareSizeTuple(0, 68).into(),
+                  size: DpiAwareSizeTuple(91, 25).into(),
                   h_align: HTextAlign::Right)]
     config_label: Label,
 
     #[nwg_control(placeholder_text: Some("<optional>"),
-                  position: (99, 66), size: (333, 20))]
+                  position: DpiAwareSizeTuple(99, 66).into(),
+                  size: DpiAwareSizeTuple(333, 20).into())]
     config: TextInput,
 
     #[nwg_resource(
@@ -101,30 +132,39 @@ pub struct App {
     )]
     config_file_dialog: FileDialog,
 
-    #[nwg_control(text: "Select", position: (440, 64), size: (72, 23))]
+    #[nwg_control(text: "Select",
+                  position: DpiAwareSizeTuple(440, 64).into(),
+                  size: DpiAwareSizeTuple(72, 23).into())]
     #[nwg_events(OnButtonClick: [App::open_toml])]
     config_file_picker_button: Button,
 
-    #[nwg_control(text: "Lab:", position: (0, 96), size: (91, 25),
+    #[nwg_control(text: "Lab:",
+                  position: DpiAwareSizeTuple(0, 96).into(),
+                  size: DpiAwareSizeTuple(91, 25).into(),
                   h_align: HTextAlign::Right)]
     label: Label,
 
     #[nwg_control(collection: vec!["1", "2", "3", "4", "5", "6", "7", "8", "9"],
                   selected_index: Some(0),
-                  position: (99, 92),
-                  size: (57, 23))]
+                  position: DpiAwareSizeTuple(99, 92).into(),
+                  size: DpiAwareSizeTuple(57, 23).into())]
     lab: ComboBox<&'static str>,
 
-    #[nwg_control(text: "Do not generate spreadsheet", position: (99, 120),
-                  size: (175, 25), focus: true)]
+    #[nwg_control(text: "Do not generate spreadsheet",
+                  position: DpiAwareSizeTuple(99, 120).into(),
+                  size: DpiAwareSizeTuple(175, 25).into(),
+                  focus: true)]
     nox: CheckBox,
 
-    #[nwg_control(text: "Do not split PDF", position: (99, 147),
-                  size: (105, 25), focus: true)]
+    #[nwg_control(text: "Do not split PDF",
+                  position: DpiAwareSizeTuple(99, 147).into(),
+                  size: DpiAwareSizeTuple(105, 25).into(),
+                  focus: true)]
     no_split: CheckBox,
 
-    #[nwg_control(text: "Create Sample Configuration", position: (164, 190),
-                  size: (192, 23))]
+    #[nwg_control(text: "Create Sample Configuration",
+                  position: DpiAwareSizeTuple(164, 190).into(),
+                  size: DpiAwareSizeTuple(192, 23).into())]
     #[nwg_events(OnButtonClick: [App::save_config])]
     sample_config_button: Button,
 
@@ -135,11 +175,15 @@ pub struct App {
     )]
     sample_config_dialog: FileDialog,
 
-    #[nwg_control(text: "Run", position: (362, 190), size: (72, 23))]
+    #[nwg_control(text: "Run",
+                  position: DpiAwareSizeTuple(362, 190).into(),
+                  size: DpiAwareSizeTuple(72, 23).into())]
     #[nwg_events(OnButtonClick: [App::generate])]
     run_button: Button,
 
-    #[nwg_control(text: "Exit", position: (440, 190), size: (72, 23))]
+    #[nwg_control(text: "Exit",
+                  position: DpiAwareSizeTuple(440, 190).into(),
+                  size: DpiAwareSizeTuple(72, 23).into())]
     #[nwg_events(OnButtonClick: [App::exit])]
     exit: Button
 }
@@ -268,9 +312,9 @@ impl App {
 pub fn main() {
     native_windows_gui::init().expect("Failed to init Windows GUI");
     let mut font = native_windows_gui::Font::default();
-    let _ = native_windows_gui::Font::builder().size(16).family("Segoe UI").build(&mut font);
+    let font_size: i32 = DpiAwareSize(16).into();
+    let _ = native_windows_gui::Font::builder().size(font_size as u32).family("Segoe UI").build(&mut font);
     let _ = native_windows_gui::Font::set_global_default(Some(font));
-    use app_ui::AppUi;
     let _app = App::build_ui(Default::default()).unwrap();
     _app.restore_state();
     native_windows_gui::dispatch_thread_events();
