@@ -1,0 +1,28 @@
+[package]
+name = "rosters-gui"
+version.workspace = true
+authors.workspace = true
+description.workspace = true
+edition.workspace = true
+build = "build.rs"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+slint = "1.7.*"
+arrayvec = { version = "0.7.*", default-features = false }
+directories = "5.0.*"
+rosters-lib = { path = "../rosters-lib" }
+serde = { version = "1.0.*", features = ["serde_derive"] }
+serde_json = "1.0.*"
+toml = "0.7.*"
+
+[build-dependencies]
+slint-build = "1.7.*"
+
+[target.'cfg(windows)'.build-dependencies]
+embed-manifest = "1.4"
+
+[[bin]]
+name = "rosters-gui"
+path = "src/main.rs"

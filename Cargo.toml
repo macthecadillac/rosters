@@ -1,5 +1,5 @@
 [workspace]
-members = ["rosters-lib", "rosters-windows-gui", "rosters-cli"]
+members = ["rosters-lib", "rosters-windows-gui", "rosters-cli", "rosters-gui"]
 default-members = ["rosters-cli"]
 resolver = "2"
 
