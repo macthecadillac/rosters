@@ -31,45 +31,75 @@ Here is a sample configuration with all the recognized keys:
 ```toml
 # This is an example configuration to help you get started.
 
-# Configuration is entirely optional. `rosters` will run
-# with default values if a given section is not found.
+# Configuration is entirely optional. `rosters` will run with default values if
+# a given section is not found.
 
 # This file is written in the TOML format. Lines prefixed with the "#" sign
 # are comments and will be ignored.
 
-[ta-assignment]
-# LHS is the name of the TA. There cannot be spaces within a name.
-# RHS is the list of sections that the TA is assigned to. It must be a list of
-# integers separated by commas. The generator only supports up to 20 sections per
-# TA.
-Joe = [38, 40]
-Donny = [17, 19, 29, 35]
-Barry = [3, 21, 23, 33]
-Walker = [7, 9, 28, 30]
-Billy = [10, 18, 20, 36]
-Herbert = [5, 13, 15, 25]
-Ronny = [1, 11, 27, 31]
-Jimmy = [2, 12, 22, 32]
-Jerry = [6, 8, 16, 26]
-Ricky = [4, 14, 24, 34]
-Lyndon = [37, 39]
+##### Uncomment the following block to enable per-TA PDF generation
 
-# Comment out/delete section if you don't want to customize the checkpoint
-# columns. These example values are for 1CL.
-[checkpoints]
-# LHS must be in the form of "lab" followed by an integer.
-# RHS is a list of strings. Entries must be enclosed in single or double quotes
-# separted by commas. The generator only supports up to 10 checkpoints per lab.
-# Checkpoint labels cannot be longer than 20 characters each.
-lab1 = ['A', 'B5', 'C1', 'C2']
-lab2 = ['B5', 'B6', 'Part C7']
-lab3 = ['A7b', 'B7', 'B8/B9', 'B12']
-lab4 = ['A4', 'B6', 'D1', 'D2']
-lab5 = ['A2', 'B2', 'After C5', 'C6']
-lab6 = ['A', 'B5', 'C']
-lab7 = ['A3', 'B6', 'B13', 'C10']
-lab8 = ['A6', 'A12', 'B2', 'B7']
-lab9 = ['A3', 'B2', 'B9', 'C4']
+# [ta-assignment]
+# # LHS is the name of the TA. There cannot be spaces within a name.
+# # RHS is the list of sections that the TA is assigned to. It must be a list of
+# # integers separated by commas. The generator only supports up to 20 sections per
+# # TA.
+# Joe = [38, 40]
+# Donny = [17, 19, 29, 35]
+# Barry = [3, 21, 23, 33]
+# Walker = [7, 9, 28, 30]
+# Billy = [10, 18, 20, 36]
+# Herbert = [5, 13, 15, 25]
+# Ronny = [1, 11, 27, 31]
+# Jimmy = [2, 12, 22, 32]
+# Jerry = [6, 8, 16, 26]
+# Ricky = [4, 14, 24, 34]
+# Lyndon = [37, 39]
+
+##### The following block will override the course specific settings that follow
+
+# # Comment out/delete section if you don't want to customize the checkpoint
+# # columns. These example values are for 1CL.
+# [checkpoints]
+# # LHS must be "mathbootcamp" or in the form of "lab" followed by an integer.
+# "lab0" is automatically understood as "mathbootcamp".
+# # RHS is a list of strings. Entries must be enclosed in single or double quotes
+# # separted by commas. The generator only supports up to 10 checkpoints per lab.
+# # Checkpoint labels cannot be longer than 20 characters each.
+# mathbootcamp = []
+# lab1 = ['A', 'B3', 'C7', 'D1']
+# lab2 = ['A8', 'A12', 'C12', 'D4(a)', 'D4(b)']
+# lab3 = ['B4', 'C6', 'D11', 'E10']
+# lab4 = ['A6', 'B12', 'C1', 'C5', 'C8']
+# lab5 = ['A5', 'B10', 'C2', 'D2(a)', 'D2(b)']
+
+##### Course specific settings. Overriden by the [checkpoints] block
+
+# These are the checkpoints during Summer Session II 2024.
+[1AL.checkpoints]
+# See "checkpoints" section above
+lab0 = []
+lab1 = ['A', 'B4', 'C1', 'C2']
+lab2 = ['B3-B4', 'B6', 'C8(a)', 'C8(b)']
+lab3 = ['A', 'B2', 'Pre-C6', 'C6(a)', 'C6(b)']
+lab4 = ['A3', 'B6-B7', 'C2', 'C3(a)', 'C3(b)']
+lab5 = ['A', 'B3-B4', 'C2']
+
+[1BL.checkpoints]
+lab0 = []
+lab1 = ['A5-A7', 'B9-B10', 'C2', 'C6-C7']
+lab2 = ['A', 'C', 'D', 'E10', 'E16-E17']
+lab3 = ['A', 'B', 'C', 'D(a)', 'D(b)']
+lab4 = ['A7', 'B4', 'B7-B9', 'C']
+lab5 = ['A', 'B3-B4', 'B7-B13', 'Post-C5']
+
+[1CL.checkpoints]
+lab0 = []
+lab1 = ['A', 'B3', 'C7', 'D1']
+lab2 = ['A8', 'A12', 'C12', 'D4(a)', 'D4(b)']
+lab3 = ['B4', 'C6', 'D11', 'E10']
+lab4 = ['A6', 'B12', 'C1', 'C5', 'C8']
+lab5 = ['A5', 'B10', 'C2', 'D2(a)', 'D2(b)']
 ```
 
 # Building from source

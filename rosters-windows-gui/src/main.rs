@@ -57,8 +57,11 @@ impl Into<CheckBoxState> for SerdeCheckBoxState {
 #[derive(Deserialize, Debug, Serialize)]
 struct PreviousState {
     lab: Option<usize>,
+    // wrap in option for backward compatibility
+    no_sign: Option<SerdeCheckBoxState>,
     nox: SerdeCheckBoxState,
     no_split: SerdeCheckBoxState,
+    defaults: Option<SerdeCheckBoxState>,
     config_path: String,
     input_path: String,
     output_path: String,
@@ -67,7 +70,7 @@ struct PreviousState {
 #[derive(Default, NwgUi)]
 pub struct App {
     #[nwg_control(title: &format!("Roster Generator v{}", env!("CARGO_PKG_VERSION")),
-                  size: DpiAwareSizeTuple(520, 222).into(),
+                  size: DpiAwareSizeTuple(520, 274).into(),
                   flags: "WINDOW|VISIBLE")]
     #[nwg_events(OnWindowClose: [App::exit])]
     window: Window,
@@ -142,28 +145,41 @@ pub struct App {
                   position: DpiAwareSizeTuple(0, 96).into(),
                   size: DpiAwareSizeTuple(91, 25).into(),
                   h_align: HTextAlign::Right)]
-    label: Label,
+    lab_label: Label,
 
-    #[nwg_control(collection: vec!["1", "2", "3", "4", "5", "6", "7", "8", "9"],
+    #[nwg_control(collection: vec!["Math Bootcamp", "1", "2", "3", "4", "5"],
                   selected_index: Some(0),
                   position: DpiAwareSizeTuple(99, 92).into(),
-                  size: DpiAwareSizeTuple(57, 23).into())]
+                  size: DpiAwareSizeTuple(115, 23).into())]
     lab: ComboBox<&'static str>,
 
-    #[nwg_control(text: "Do not generate spreadsheet",
+    #[nwg_control(text: "Use default configuration shipped with this program",
                   position: DpiAwareSizeTuple(99, 120).into(),
+                  size: DpiAwareSizeTuple(305, 25).into(),
+                  focus: true)]
+    #[nwg_events(OnButtonClick: [App::clear_config_path])]
+    defaults: CheckBox,
+
+    #[nwg_control(text: "Do not include \"Signed\" column",
+                  position: DpiAwareSizeTuple(99, 147).into(),
+                  size: DpiAwareSizeTuple(190, 25).into(),
+                  focus: true)]
+    no_sign: CheckBox,
+
+    #[nwg_control(text: "Do not generate spreadsheet",
+                  position: DpiAwareSizeTuple(99, 174).into(),
                   size: DpiAwareSizeTuple(175, 25).into(),
                   focus: true)]
     nox: CheckBox,
 
     #[nwg_control(text: "Do not split PDF",
-                  position: DpiAwareSizeTuple(99, 147).into(),
+                  position: DpiAwareSizeTuple(99, 201).into(),
                   size: DpiAwareSizeTuple(105, 25).into(),
                   focus: true)]
     no_split: CheckBox,
 
     #[nwg_control(text: "Create Sample Configuration",
-                  position: DpiAwareSizeTuple(164, 190).into(),
+                  position: DpiAwareSizeTuple(164, 244).into(),
                   size: DpiAwareSizeTuple(192, 23).into())]
     #[nwg_events(OnButtonClick: [App::save_config])]
     sample_config_button: Button,
@@ -176,13 +192,13 @@ pub struct App {
     sample_config_dialog: FileDialog,
 
     #[nwg_control(text: "Run",
-                  position: DpiAwareSizeTuple(362, 190).into(),
+                  position: DpiAwareSizeTuple(362, 244).into(),
                   size: DpiAwareSizeTuple(72, 23).into())]
     #[nwg_events(OnButtonClick: [App::generate])]
     run_button: Button,
 
     #[nwg_control(text: "Exit",
-                  position: DpiAwareSizeTuple(440, 190).into(),
+                  position: DpiAwareSizeTuple(440, 244).into(),
                   size: DpiAwareSizeTuple(72, 23).into())]
     #[nwg_events(OnButtonClick: [App::exit])]
     exit: Button
@@ -201,6 +217,12 @@ impl App {
                 if let Ok(state) = data {
                     self.lab.set_selection(state.lab);
                     self.nox.set_check_state(state.nox.into());
+                    if let Some(no_sign) = state.no_sign {
+                        self.no_sign.set_check_state(no_sign.into());
+                    }
+                    if let Some(defaults) = state.defaults {
+                        self.defaults.set_check_state(defaults.into());
+                    }
                     self.no_split.set_check_state(state.no_split.into());
                     if PathBuf::from(&state.input_path).exists() {
                         self.input.set_text(&state.input_path);
@@ -219,17 +241,22 @@ impl App {
     fn save_state(&self) {
         let lab = self.lab.selection();
         let nox = self.nox.check_state().into();
+        let no_sign = Some(self.no_sign.check_state().into());
         let no_split = self.no_split.check_state().into();
+        let defaults = Some(self.defaults.check_state().into());
         let input_path = self.input.text().to_owned();
         let output_path = self.output.text().to_owned();
         let config_path = self.config.text().to_owned();
-        let state = PreviousState { lab, nox, no_split, input_path, output_path, config_path };
+        let state = PreviousState { lab, nox, no_sign, no_split, defaults,
+                                    input_path, output_path, config_path };
         if let Ok(data_path) = App::previous_state_path() {
             if let Ok(str) = serde_json::to_string(&state) {
                 let _ = fs::write(data_path, str);
             }
         }
     }
+
+    fn clear_config_path(&self) { self.config.set_text("") }
 
     fn maybe_text(t: &TextInput) -> Option<PathBuf> {
         let text = t.text();
@@ -247,11 +274,13 @@ impl App {
         let maybe_input = App::maybe_text(&self.input);
         let output = App::maybe_text(&self.output);
         let config = App::maybe_text(&self.config);
-        let lab = self.lab.selection().unwrap() + 1;
+        let lab = Lab::from(self.lab.selection().unwrap());
+        let no_sign = App::to_bool(self.no_sign.check_state());
+        let defaults = App::to_bool(self.defaults.check_state());
         let nox = App::to_bool(self.nox.check_state());
         let no_split = App::to_bool(self.no_split.check_state());
         if let Some(input) = maybe_input {
-            if let Err(e) = crate::generate(input, output, lab, nox, config, no_split) {
+            if let Err(e) = crate::generate(input, output, lab, no_sign, nox, config, defaults, no_split) {
                 let msg = format!("{:?}", e);
                 native_windows_gui::modal_info_message(&self.window, "Error", &format!("Error: {}", msg));
             } else {
@@ -284,7 +313,10 @@ impl App {
 
     fn open_dir(&self) { self.open_file(&self.output_directory_dialog, &self.output) }
 
-    fn open_toml(&self) { self.open_file(&self.config_file_dialog, &self.config) }
+    fn open_toml(&self) {
+        self.open_file(&self.config_file_dialog, &self.config);
+        self.defaults.set_check_state(CheckBoxState::Unchecked);
+    }
 
     fn open_file(&self, dialog: &FileDialog, file_name: &TextInput) {
         if let Ok(dir) = env::current_dir() {

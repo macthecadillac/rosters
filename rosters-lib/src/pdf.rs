@@ -6,7 +6,7 @@ use subsetter::{subset, Profile};
 
 use std::collections::HashSet;
 
-use crate::data::{Checkpoint, Lab, Student, Roster, Section};
+use crate::data::{Checkpoint, Lab, Student, Roster, Session};
 use crate::error::Error;
 
 /// Embedded regular font. This font will be embedded into the PDF we generate
@@ -257,7 +257,7 @@ impl Page {
     }
 
     /// Add a header to the page
-    fn add_header(&mut self, lab: Lab, section: Section,
+    fn add_header(&mut self, lab: Lab, session: Session,
                   checkpoints: &[Checkpoint]) -> Result<(), Error> {
         let text_width = PAGEWIDTH - MARGINS * 2.;
         let size = self.font_size;
@@ -277,12 +277,12 @@ impl Page {
         });
         y0 += thickness + top_padding;
         let anchor1 = Vector::from_ul(x0 + side_padding, y0);
-        self.text.push(Text { str: format!("Lab {}", lab), size, font: Font::Bold,
+        self.text.push(Text { str: format!("{}", lab), size, font: Font::Bold,
                               anchor: anchor1 });
-        let section_str = format!("Section {}", section);
-        let section_str_width = Width::Auto.width(&section_str, Font::Bold, size)?;
-        let x = (text_width - section_str_width) * 0.5;
-        self.text.push(Text { str: section_str, size, font: Font::Bold,
+        let session_str = format!("Section {}", session.section);
+        let session_str_width = Width::Auto.width(&session_str, Font::Bold, size)?;
+        let x = (text_width - session_str_width) * 0.5;
+        self.text.push(Text { str: session_str, size, font: Font::Bold,
                               anchor: Vector::from_ul(x, y0) });
         self.text.push(Text { str: "Date:".into(), size, font: Font::Bold,
                               anchor: Vector::from_ul(Length::from_in(4.8), y0) });
@@ -306,7 +306,6 @@ impl Page {
                                 (Width::Auto, "Group")];
         let right_header_text: Vec<_> = checkpoints.iter()
             .map(|x| (Width::Auto, x.as_ref()))
-            .chain([(Width::Auto, "Signed")].into_iter())
             .collect();
         let lwidths: Vec<Length> = left_header_text.iter()
             .map(|(w, x)| w.width(x, Font::Bold, size))
@@ -478,8 +477,8 @@ impl Document {
         let mut page = Page::default();
         page.font_size = self.compute_font_size(roster)?;
         page.ngroups = roster.ngroups();
-        page.title = format!("Section {}", roster.section);
-        page.add_header(lab, roster.section, checkpoints)?;
+        page.title = format!("Section {}", roster.session.section);
+        page.add_header(lab, roster.session, checkpoints)?;
         for (group, students) in roster.groups().enumerate() {
             page.add_group(group + 1, students)?;
         }

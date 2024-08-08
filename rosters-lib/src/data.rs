@@ -7,6 +7,7 @@ use serde::de::Error;
 
 use std::fmt::{Display, Formatter};
 use std::collections::HashMap;
+use std::str::FromStr;
 
 use crate::error;
 
@@ -21,10 +22,6 @@ pub(crate) const MAXGROUPSIZE: usize = 7;
 /// chars, the probability of a name exceeding 50 chars and that Canvas could even handle that is
 /// almost non-existent.
 pub(crate) const MAXNAMELEN: usize = 50;
-/// The maximum length of a lab name. Given the format needs to be "lab#", it is impossible to
-/// breach this number unless we have more than 100 labs per quarter or if labs start to be named
-/// with crazy numbers.
-pub(crate) const LABSTRMAXLEN: usize = 5;
 /// The target group size. A full class obviously has more than 5 students in every group and an
 /// underenrolled class could have less. This is simply a reference so the algorithm could decide
 /// when to split up groups.
@@ -41,7 +38,6 @@ const MAXCHECKPOINTLEN: usize = 20;
 /// The number of chars a student ID has
 const SIDLEN: usize = 9;
 
-
 /// This defines the configuration file format. The configuration consists of two sections:
 /// `ta_assignemnt` and `checkpoints`. Both sections are optional, as is the configuration itself.
 /// There is an upper limit on how many sections a TA can be assigned, which is defined by the
@@ -49,51 +45,89 @@ const SIDLEN: usize = 9;
 /// have. That is defined by `MAXCHECKPOINTS` constant. While the HashMap is allocated on the heap,
 /// its contents are locally owned to prevent further indirection.
 #[derive(Deserialize, Debug)]
+pub(crate) struct CheckpointConfig {
+    pub(crate) checkpoints: HashMap<Lab, ArrayVec<Checkpoint, MAXCHECKPOINTS>>
+}
+
+#[derive(Deserialize, Debug)]
 pub(crate) struct Config {
     #[serde(rename="ta-assignment")]
     pub(crate) ta_assignment: Option<HashMap<TA, ArrayVec<Section, MAXSECTION>>>,
     pub(crate) checkpoints: Option<HashMap<Lab, ArrayVec<Checkpoint, MAXCHECKPOINTS>>>,
+    #[serde(rename="1AL")]
+    pub(crate) a: Option<CheckpointConfig>,
+    #[serde(rename="1BL")]
+    pub(crate) b: Option<CheckpointConfig>,
+    #[serde(rename="1CL")]
+    pub(crate) c: Option<CheckpointConfig>
+}
+
+impl Config {
+    pub(crate) fn get_checkpoints(
+        &self,
+        class: Class,
+        lab: &Lab,
+        no_sign: bool
+    ) -> Option<Vec<Checkpoint>> {
+        let checkpoint_config = self.checkpoints.as_ref()
+            .or(match class {
+                Class::A => &self.a,
+                Class::B => &self.b,
+                Class::C => &self.c
+            }.as_ref().map(|c| &c.checkpoints));
+        if let Some(checkpoints) = checkpoint_config.as_ref().and_then(|m| m.get(lab)) {
+            let mut chkpts = checkpoints.to_vec();
+            if !no_sign { chkpts.push(FromStr::from_str("Signed").unwrap()); }
+            Some(chkpts)
+        } else {
+            None
+        }
+    }
+}
+
+#[derive(Copy, Clone, Debug, Eq, Ord, PartialEq, PartialOrd)]
+pub(crate) struct Session {
+    pub(crate) class: Class,
+    pub(crate) section: Section
+}
+
+impl<'de> Deserialize<'de> for Session {
+    fn deserialize<D>(deserializer: D) -> Result<Session, D::Error>
+        where D: Deserializer<'de>, {
+        let str = String::deserialize(deserializer).map_err(D::Error::custom)?;
+        let chars: Vec<_> = str.trim().chars().collect();
+        let class = match chars.as_slice() {
+            // the first pattern is for the toml configs, the second for Canvas output
+            &['P', 'H', 'Y', 'S', ' ', '1', 'A', 'L', ..] => Ok(Class::A),
+            &['P', 'H', 'Y', 'S', ' ', '1', 'B', 'L', ..] => Ok(Class::B),
+            &['P', 'H', 'Y', 'S', ' ', '1', 'C', 'L', ..] => Ok(Class::C),
+            _ => Err(D::Error::custom("unrecognized string"))
+        }?;
+        let section = Section(
+            str.split_whitespace().rev().skip(1).next()
+               .ok_or(D::Error::custom("unrecognized string"))?
+               // Try to parse NNN as an integer
+               .parse::<usize>()
+               .map_err(|m| D::Error::custom(m))?
+            );
+        Ok(Session { class, section })
+    }
 }
 
 /// Data record entry
 #[derive(Clone, Debug, Deserialize, Eq, Ord, PartialEq, PartialOrd)]
 pub(crate) struct Record {
     #[serde(rename(deserialize="Section"))]
-    section: Section,
+    pub(crate) session: Session,
     #[serde(rename(deserialize="Student"))]
-    name: Name,
+    pub(crate) name: Name,
     #[serde(rename(deserialize="SIS User ID"))]
-    sid: SID
+    pub(crate) sid: SID
 }
 
 /// In memory representation of a lab section
 #[derive(Clone, Copy, Debug, Deserialize, Display, Eq, From, Into, Hash, Ord, PartialEq, PartialOrd)]
-pub(crate) struct Section(#[serde(deserialize_with="deserialize_section")] usize);
-
-/// A convenient/ephemeral type for the deserialization of section strings
-#[derive(Deserialize)]
-#[serde(untagged)]
-enum Union { S(ArrayString<MAXNAMELEN>), U(usize), }
-
-/// Helper function for the deserialization of lab section strings
-fn deserialize_section<'de, D>(deserializer: D) -> Result<usize, D::Error>
-    where D: Deserializer<'de>, {
-    let res = match Union::deserialize(deserializer).map_err(D::Error::custom)? {
-        Union::S(v) => {
-            // Canvas formats sections as "PHYS 1XL - NNN [XXXXXX]" where NNN is the section number
-            // For example: "PHYS 1CL - 002 [331507]"
-            // Try to split the section string by whitespace and take the second to last item,
-            // which is NNN
-            v.split_whitespace().rev().skip(1).next()
-             .ok_or(D::Error::custom("unrecognized string"))?
-             // Try to parse NNN as an integer
-             .parse::<usize>()
-             .map_err(|m| D::Error::custom(m))?
-        },
-        Union::U(v) => v
-    };
-    Ok(res)
-}
+pub struct Section(usize);
 
 /// A statically/stack allocated representation of a TA's name. Because of the staticity of the
 /// definition, there is a size limitation that is defined by `MAXNAMELEN`.
@@ -102,21 +136,69 @@ fn deserialize_section<'de, D>(deserializer: D) -> Result<usize, D::Error>
 #[as_ref(forward)]
 pub(crate) struct TA(ArrayString<MAXNAMELEN>);
 
-/// The memory representation of a lab
-#[derive(Copy, Clone, Debug, Deserialize, Display, Eq, From, Into, Hash, Ord, PartialEq, PartialOrd)]
-#[serde(try_from="ArrayString<LABSTRMAXLEN>")]
-pub(crate) struct Lab(usize);
+#[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
+pub enum Class { A, B, C }
 
-impl TryFrom<ArrayString<LABSTRMAXLEN>> for Lab {
+impl<'de> Deserialize<'de> for Class {
+    fn deserialize<D>(deserializer: D) -> Result<Class, D::Error>
+        where D: Deserializer<'de>, {
+        let str = String::deserialize(deserializer).map_err(D::Error::custom)?;
+        FromStr::from_str(&str).map_err(D::Error::custom)
+    }
+}
+
+// for clap
+impl FromStr for Class {
+    type Err = &'static str;
+    fn from_str(s: &str) -> Result<Class, &'static str> {
+        match s.trim() {
+            "A" => Ok(Class::A),
+            "B" => Ok(Class::B),
+            "C" => Ok(Class::C),
+            _ => Err("the only acceptable inputs are 'A', 'B' or 'C'")
+        }
+    }
+}
+
+impl Display for Class {
+    fn fmt(&self, f: &mut Formatter<'_>) -> Result<(), std::fmt::Error> {
+        match self {
+            Class::A => write!(f, "1AL"),
+            Class::B => write!(f, "1BL"),
+            Class::C => write!(f, "1CL")
+        }
+    }
+}
+
+/// The memory representation of a lab
+#[derive(Copy, Clone, Debug, Deserialize, Eq, From, Into, Hash, Ord, PartialEq, PartialOrd)]
+#[serde(try_from="String")]
+pub struct Lab(usize);
+
+impl TryFrom<String> for Lab {
     type Error = error::Error;
-    fn try_from(str: ArrayString<LABSTRMAXLEN>) -> Result<Self, error::Error> {
-        // Lab numbers must be formatted as "lab#" where "#" is an integer
-        if str.bytes().zip(b"lab".iter()).all(|(a, &b)| a == b) {
-            // If the first three chars are exactly "lab", read the following chars and try to
-            // parse them as one integer
-            Ok(Lab(str.as_str()[3..].parse()?))
-        } else {
-            Err(error::Error::UnknownLabPrefix(str))
+    fn try_from(str: String) -> Result<Self, error::Error> {
+        FromStr::from_str(&str)
+    }
+}
+
+impl FromStr for Lab {
+    type Err = error::Error;
+    fn from_str(str: &str) -> Result<Self, error::Error> {
+        let s: Vec<_> = str.trim().chars().collect();
+        match s.as_slice() {
+            ['m', 'a', 't', 'h', 'b', 'o', 'o', 't', 'c', 'a', 'm', 'p'] => Ok(Lab(0)),
+            ['l', 'a', 'b', n] | [n] if n.is_digit(10) => Ok(Lab(n.to_digit(10).unwrap() as usize)),
+            _ => Err(error::Error::UnknownLabPrefix(str.to_owned()))
+        }
+    }
+}
+
+impl Display for Lab {
+    fn fmt(&self, f: &mut Formatter<'_>) -> Result<(), std::fmt::Error> {
+        match self.0 {
+            0 => write!(f, "Math Bootcamp"),
+            n => write!(f, "Lab {}", n)
         }
     }
 }
@@ -188,7 +270,7 @@ impl<'a> Display for Student<'a> {
 #[derive(Clone, Debug)]
 pub(crate) struct Roster<'a> {
     /// Lab section
-    pub(crate) section: Section,
+    pub(crate) session: Session,
     /// List of students enrolled in the section
     pub(crate) students: ArrayVec<Student<'a>, {MAXGROUPSIZE * NGROUPS}>,
 }
@@ -235,11 +317,11 @@ impl<'a> Roster<'a> {
     pub(crate) fn from_records(records: &'a [Record]) -> Result<Vec<Roster<'a>>, error::Error> {
         let mut rng = rand::thread_rng();
         let mut recs: Vec<_> = records.iter().collect();
-        recs.sort_by_key(|&record| record.section);
+        recs.sort_by_key(|&record| record.session.section);
         recs.iter()
-            .group_by(|record| record.section)
+            .group_by(|record| record.session)
             .into_iter()
-            .map(|(section, list)| {
+            .map(|(session, list)| {
                 let mut students = ArrayVec::new();
                 let mut ord_list: Vec<_> = list.cloned().collect();
                 ord_list.sort();
@@ -254,7 +336,7 @@ impl<'a> Roster<'a> {
                     students.try_push(student).map_err(|_| error::Error::SectionSizeError)?;
                 }
                 students.shuffle(&mut rng);
-                Ok(Roster { section, students })
+                Ok(Roster { session, students })
             })
             .collect()
     }

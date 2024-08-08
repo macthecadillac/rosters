@@ -16,7 +16,7 @@ impl Workbook {
     pub(crate) fn initialize(&mut self, lab: Lab, sections: &[Section])
         -> Result<(), crate::error::Error> {
         let sheet = self.data.add_worksheet();
-        sheet.write_string(0, 0, format!("Lab {}", lab))?;
+        sheet.write_string(0, 0, format!("{}", lab))?;
         sheet.write_string(0, 1, "Check if complete")?;
         for (row, section) in sections.iter().enumerate() {
             sheet.write_string(row as u32 + 1, 0, format!("section {}", section))?;
@@ -27,7 +27,7 @@ impl Workbook {
     /// Add sheet to Excel workbook
     pub(crate) fn add_sheet(&mut self, roster: &Roster) -> Result<(), Error> {
         let sheet = self.data.add_worksheet();
-        sheet.set_name(format!("section {}", roster.section))?;
+        sheet.set_name(format!("section {}", roster.session.section))?;
         let red_text = Format::new().set_font_color(Color::Red).set_bold();
         let num_fmt = Format::new().set_num_format("0");
         sheet.write_string_with_format(0, 0, "\

@@ -1,16 +1,18 @@
 use arrayvec::ArrayString;
 use derive_more::{Display, Error, From};
-use crate::data::{LABSTRMAXLEN, MAXGROUPSIZE, MAXNAMELEN, NGROUPS, Section};
+use crate::data::{MAXGROUPSIZE, MAXNAMELEN, NGROUPS, Section};
 
 /// The Error type
 #[derive(Debug, Display, From, Error)]
 #[error(ignore)]  // don't derive backtrace/source
-pub(crate) enum Error {
+pub enum Error {
     #[display(fmt="name not formatted as 'last, first': {}", _0)]
     #[from(ignore)]
     ParseNameError(ArrayString<MAXNAMELEN>),
+    #[display(fmt="no valid record found in the data file")]
+    NoRecordFound,
     #[display(fmt="cannot parse lab number from key: {}", _0)]
-    UnknownLabPrefix(ArrayString<LABSTRMAXLEN>),
+    UnknownLabPrefix(String),
     #[display(fmt="cannot parse lab number from key")]
     UnknownLabNumber(std::num::ParseIntError),
     #[display(fmt="section {} does not exist in the input data. Check your configuration/input data.", _0)]
