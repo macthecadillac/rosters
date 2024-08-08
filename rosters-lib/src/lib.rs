@@ -41,12 +41,12 @@ fn write_pdf<'a, T>(lab: Lab, checkpoints: &[Checkpoint], data: DataStream<'a, T
     let fname = match data {
         DataStream::Many { rosters, tag } => {
             for roster in rosters {
-                pdf.add_page(roster, lab.into(), &checkpoints)?;
+                pdf.add_page(roster, lab, &checkpoints)?;
             }
             format!("{} Blank Rosters ({} Sections).pdf", lab, tag)
         },
         DataStream::One { roster } => {
-            pdf.add_page(roster, lab.into(), &checkpoints)?;
+            pdf.add_page(roster, lab, &checkpoints)?;
             format!("{} Blank Rosters (Section {}).pdf", lab, roster.session.section)
         }
     };
@@ -68,7 +68,7 @@ fn write_xlsx<'a>(base_dir: &PathBuf, lab: Lab,
                   rosters: &[Roster]) -> Result<(), error::Error> {
     let mut workbook = xlsx::Workbook::default();
     let sections: Vec<_> = rosters.iter().map(|x| x.session.section).collect();
-    workbook.initialize(lab.into(), &sections)?;
+    workbook.initialize(lab, &sections)?;
     for roster in rosters.iter() {
         workbook.add_sheet(roster)?;
     }
@@ -86,72 +86,77 @@ fn write_xlsx<'a>(base_dir: &PathBuf, lab: Lab,
 }
 
 /// Main entry of the library
-pub fn generate(input: PathBuf,
-                output: Option<PathBuf>,
-                lab: Lab,
-                no_sign: bool,
-                nox: bool,
-                config: Option<PathBuf>,
-                defaults: bool,
-                no_split: bool)
-    -> Result<(), MainError> {
-    let dirs = BaseDirs::new().ok_or("unable to find home directory. Abort")?;
-    let config_path = config.unwrap_or_else(|| dirs.config_dir().join("rosters.toml"));
-    let file = if defaults {
-        EXAMPLE_CONFIG.to_owned()
-    } else {
-        fs::read_to_string(config_path).unwrap_or_else(|_| "".into())
-    };
-    let config: Config = toml::from_str(&file)?;
-    if !input.exists() { Err("input file does not exist")? }
-    let mut csv = csv::Reader::from_path(input)?;
-    let records: Vec<_> = csv.deserialize()
-        .filter_map(|x| x.ok())
-        .collect();
-    if records.is_empty() { Err(error::Error::NoRecordFound)? };
-    let rosters = Roster::from_records(&records)?;
-    let class = records.get(0).ok_or(error::Error::NoRecordFound)?.session.class;
+pub struct Generator {
+    pub input: PathBuf,
+    pub output: Option<PathBuf>,
+    pub lab: Lab,
+    pub no_sign: bool,
+    pub nox: bool,
+    pub config: Option<PathBuf>,
+    pub defaults: bool,
+    pub no_split: bool
+}
 
-    let base_dir = output.ok_or("").or_else(|_| env::current_dir())?;
-    if !base_dir.exists() { Err("output directory does not exist")? }
-    if !base_dir.is_dir() { Err("output path needs to be a directory")? }
-
-    let dir = base_dir.join("Blank Rosters");
-    let pdf_dir = if !no_split {
-        if !dir.exists() { std::fs::create_dir_all(&dir)? };
-        &dir
-    } else {
-        &base_dir
-    };
-
-    let signed_chkpts = vec!["1", "2", "3", "4", "Signed"];
-    let unsigned_chkpts = vec!["1", "2", "3", "4"];
-    let default_chkpt = if no_sign { unsigned_chkpts } else { signed_chkpts }
-        .into_iter()
-        .map(|s| FromStr::from_str(s))
-        .collect::<Result<_, _>>()?;
-    let checkpoints = config.get_checkpoints(class, &lab.into(), no_sign).unwrap_or(default_chkpt);
-    if !no_split {
-        if let Some(ta_assignment) = config.ta_assignment.as_ref() {
-            ta_assignment.par_iter().try_for_each(|(ta, sections)| {
-                let rosters = sections.iter()
-                    .map(|&section| rosters.iter().find(|&r| r.session.section == section)
-                        .ok_or(error::Error::NonexistentSection(section)))
-                    .collect::<Result<Vec<_>, _>>()?
-                    .into_iter();
-                let data_stream = DataStream::Many { rosters, tag: ta.as_ref() };
-                write_pdf(lab.into(), &checkpoints, data_stream, &pdf_dir)
-            })?;
+impl Generator {
+    pub fn run(self) -> Result<(), MainError> {
+        let dirs = BaseDirs::new().ok_or("unable to find home directory. Abort")?;
+        let config_path = self.config.unwrap_or_else(|| dirs.config_dir().join("rosters.toml"));
+        let file = if self.defaults {
+            EXAMPLE_CONFIG.to_owned()
         } else {
-            rosters.par_iter().try_for_each(|roster| {
-                let data_stream: DataStream<std::iter::Empty<_>> = DataStream::One { roster };
-                write_pdf(lab.into(), &checkpoints, data_stream, &pdf_dir)
-            })?;
-        }
-    }
-    let data_stream = DataStream::Many { rosters: rosters.iter(), tag: "All" };
-    write_pdf(lab.into(), &checkpoints, data_stream, &pdf_dir)?;
+            fs::read_to_string(config_path).unwrap_or_else(|_| "".into())
+        };
+        let config: Config = toml::from_str(&file)?;
+        if !self.input.exists() { Err("input file does not exist")? }
+        let mut csv = csv::Reader::from_path(self.input)?;
+        let records: Vec<_> = csv.deserialize()
+            .filter_map(|x| x.ok())
+            .collect();
+        if records.is_empty() { Err(error::Error::NoRecordFound)? };
+        let rosters = Roster::from_records(&records)?;
+        let class = records.get(0).ok_or(error::Error::NoRecordFound)?.session.class;
 
-    if !nox { write_xlsx(&base_dir, lab.into(), &rosters[..])? }
-    Ok(())
+        let base_dir = self.output.ok_or("").or_else(|_| env::current_dir())?;
+        if !base_dir.exists() { Err("output directory does not exist")? }
+        if !base_dir.is_dir() { Err("output path needs to be a directory")? }
+
+        let dir = base_dir.join("Blank Rosters");
+        let pdf_dir = if !self.no_split {
+            if !dir.exists() { std::fs::create_dir_all(&dir)? };
+            &dir
+        } else {
+            &base_dir
+        };
+
+        let signed_chkpts = vec!["1", "2", "3", "4", "Signed"];
+        let unsigned_chkpts = vec!["1", "2", "3", "4"];
+        let default_chkpt = if self.no_sign { unsigned_chkpts } else { signed_chkpts }
+            .into_iter()
+            .map(|s| FromStr::from_str(s))
+            .collect::<Result<_, _>>()?;
+        let checkpoints = config.get_checkpoints(class, &self.lab, self.no_sign).unwrap_or(default_chkpt);
+        if !self.no_split {
+            if let Some(ta_assignment) = config.ta_assignment.as_ref() {
+                ta_assignment.par_iter().try_for_each(|(ta, sections)| {
+                    let rosters = sections.iter()
+                        .map(|&section| rosters.iter().find(|&r| r.session.section == section)
+                            .ok_or(error::Error::NonexistentSection(section)))
+                        .collect::<Result<Vec<_>, _>>()?
+                        .into_iter();
+                    let data_stream = DataStream::Many { rosters, tag: ta.as_ref() };
+                    write_pdf(self.lab, &checkpoints, data_stream, &pdf_dir)
+                })?;
+            } else {
+                rosters.par_iter().try_for_each(|roster| {
+                    let data_stream: DataStream<std::iter::Empty<_>> = DataStream::One { roster };
+                    write_pdf(self.lab, &checkpoints, data_stream, &pdf_dir)
+                })?;
+            }
+        }
+        let data_stream = DataStream::Many { rosters: rosters.iter(), tag: "All" };
+        write_pdf(self.lab, &checkpoints, data_stream, &pdf_dir)?;
+
+        if !self.nox { write_xlsx(&base_dir, self.lab, &rosters[..])? }
+        Ok(())
+    }
 }

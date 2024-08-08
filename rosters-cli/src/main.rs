@@ -4,7 +4,7 @@ use main_error::MainError;
 use std::fs;
 use std::path::PathBuf;
 
-use rosters_lib::{EXAMPLE_CONFIG, generate, Lab};
+use rosters_lib::{EXAMPLE_CONFIG, Generator, Lab};
 
 #[derive(Debug, Subcommand)]
 enum Subcmd {
@@ -54,8 +54,10 @@ fn main() -> Result<(), MainError> {
     let args = Args::parse();
     match args.command {
         Subcmd::Config { output } => fs::write(&output, crate::EXAMPLE_CONFIG)?,
-        Subcmd::Generate { input, output, lab, no_sign, nox, config, defaults, no_split } => 
-            crate::generate(input, output, lab, no_sign, nox, config, defaults, no_split)?
+        Subcmd::Generate { input, output, lab, no_sign, nox, config, defaults, no_split } => {
+            let generator = Generator { input, output, lab, no_sign, nox, config, defaults, no_split };
+            generator.run()?
+        }
     }
     Ok(())
 }

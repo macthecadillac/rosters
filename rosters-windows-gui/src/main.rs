@@ -280,7 +280,8 @@ impl App {
         let nox = App::to_bool(self.nox.check_state());
         let no_split = App::to_bool(self.no_split.check_state());
         if let Some(input) = maybe_input {
-            if let Err(e) = crate::generate(input, output, lab, no_sign, nox, config, defaults, no_split) {
+            let generator = crate::Generator { input, output, lab, no_sign, nox, config, defaults, no_split };
+            if let Err(e) = generator.run() {
                 let msg = format!("{:?}", e);
                 native_windows_gui::modal_info_message(&self.window, "Error", &format!("Error: {}", msg));
             } else {
