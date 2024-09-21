@@ -1,6 +1,5 @@
-use arrayvec::ArrayString;
 use derive_more::{Display, Error, From};
-use crate::data::{MAXGROUPSIZE, MAXNAMELEN, NGROUPS, Section};
+use crate::data::Section;
 
 /// The Error type
 #[derive(Debug, Display, From, Error)]
@@ -8,7 +7,7 @@ use crate::data::{MAXGROUPSIZE, MAXNAMELEN, NGROUPS, Section};
 pub enum Error {
     #[display(fmt="name not formatted as 'last, first': {}", _0)]
     #[from(ignore)]
-    ParseNameError(ArrayString<MAXNAMELEN>),
+    ParseNameError(String),
     #[display(fmt="no valid record found in the data file")]
     NoRecordFound,
     #[display(fmt="cannot parse lab number from key: {}", _0)]
@@ -21,8 +20,6 @@ pub enum Error {
     PdfError(printpdf::Error),
     IOError(std::io::Error),
     XlsxError(rust_xlsxwriter::XlsxError),
-    #[display(fmt="section size of over {} is not supported", "MAXGROUPSIZE * NGROUPS")]
-    SectionSizeError,
     #[display(fmt="the name \"{}\" is too long and overflowed the stack", _0)]
     #[from(ignore)]
     NameTooLongError(String),

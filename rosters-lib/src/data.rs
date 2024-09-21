@@ -1,4 +1,3 @@
-use arrayvec::{ArrayVec, ArrayString};
 use derive_more::{AsRef, Display, From, FromStr, Into};
 use itertools::Itertools;
 use rand::seq::SliceRandom;
@@ -11,49 +10,20 @@ use std::str::FromStr;
 
 use crate::error;
 
-/// The maximum number of groups per lab. This is obviously a hard limit, given two lab rooms only
-/// have 6 benches in them.
-pub(crate) const NGROUPS: usize = 6;
-/// The maximum number of students per group. This is a physical constraint since lab rooms
-/// literally cannot hold that many people, not unless the department spends money it does not have
-/// to uprgade them.
-pub(crate) const MAXGROUPSIZE: usize = 7;
-/// The maximum number of chars a first/last name could have. Given common names fall within 10
-/// chars, the probability of a name exceeding 50 chars and that Canvas could even handle that is
-/// almost non-existent.
-pub(crate) const MAXNAMELEN: usize = 50;
-/// The target group size. A full class obviously has more than 5 students in every group and an
-/// underenrolled class could have less. This is simply a reference so the algorithm could decide
-/// when to split up groups.
-const TARGETGROUPSIZE: usize = 5;
-/// The maximum number of checkpoints per lab. This is obviously an overkill--most labs should have
-/// no more than 4-5 checkpoints.
-const MAXCHECKPOINTS: usize = 10;
-/// The maximum number of sections a TA can be assigned. The current number should be more than
-/// adequate unless the department intends to turn graduate students into full-time instructors.
-const MAXSECTION: usize = 20;
-/// The maximum number of chars a checkpoint label could have. This is obvious an overkill since
-/// anything more than 10 chars would serious disrupt the layout algorithm.
-const MAXCHECKPOINTLEN: usize = 20;
-/// The number of chars a student ID has
-const SIDLEN: usize = 9;
-
 /// This defines the configuration file format. The configuration consists of two sections:
 /// `ta_assignemnt` and `checkpoints`. Both sections are optional, as is the configuration itself.
-/// There is an upper limit on how many sections a TA can be assigned, which is defined by the
-/// `MAXSECTION` constant above. There is also an upper limit on how many checkpoints a lab can
-/// have. That is defined by `MAXCHECKPOINTS` constant. While the HashMap is allocated on the heap,
-/// its contents are locally owned to prevent further indirection.
 #[derive(Deserialize, Debug)]
 pub(crate) struct CheckpointConfig {
-    pub(crate) checkpoints: HashMap<Lab, ArrayVec<Checkpoint, MAXCHECKPOINTS>>
+    pub(crate) checkpoints: HashMap<Lab, Vec<Checkpoint>>
 }
 
 #[derive(Deserialize, Debug)]
 pub(crate) struct Config {
+    #[serde(rename="number-of-groups")]
+    pub(crate) ngroups: Option<usize>,
     #[serde(rename="ta-assignment")]
-    pub(crate) ta_assignment: Option<HashMap<TA, ArrayVec<Section, MAXSECTION>>>,
-    pub(crate) checkpoints: Option<HashMap<Lab, ArrayVec<Checkpoint, MAXCHECKPOINTS>>>,
+    pub(crate) ta_assignment: Option<HashMap<TA, Vec<Section>>>,
+    pub(crate) checkpoints: Option<HashMap<Lab, Vec<Checkpoint>>>,
     #[serde(rename="1AL")]
     pub(crate) a: Option<CheckpointConfig>,
     #[serde(rename="1BL")]
@@ -129,12 +99,10 @@ pub(crate) struct Record {
 #[derive(Clone, Copy, Debug, Deserialize, Display, Eq, From, Into, Hash, Ord, PartialEq, PartialOrd)]
 pub struct Section(usize);
 
-/// A statically/stack allocated representation of a TA's name. Because of the staticity of the
-/// definition, there is a size limitation that is defined by `MAXNAMELEN`.
 #[derive(AsRef, Clone, Debug, Deserialize, Display, Eq, From, Hash, Ord, PartialEq, PartialOrd)]
 #[serde(transparent)]
 #[as_ref(forward)]
-pub(crate) struct TA(ArrayString<MAXNAMELEN>);
+pub(crate) struct TA(String);
 
 #[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
 pub enum Class { A, B, C }
@@ -203,34 +171,28 @@ impl Display for Lab {
     }
 }
 
-/// A statically/stack allocated representation of a checkpoint. Because of the staticity of the
-/// definition, there is a size limitation that is defined by `MAXCHECKPOINTLEN`.
+/// Representation of a checkpoint.
 #[derive(AsRef, Clone, Debug, Deserialize, Display, Eq, From, FromStr, Ord, PartialEq, PartialOrd)]
 #[from(forward)]
 #[as_ref(forward)]
-pub(crate) struct Checkpoint(ArrayString<MAXCHECKPOINTLEN>);
+pub(crate) struct Checkpoint(String);
 
-/// A statically/stack allocated representation of a student's name.
+/// Representation of a student's name.
 #[derive(Clone, Debug, Deserialize, Eq, Hash, Ord, PartialEq, PartialOrd)]
-#[serde(try_from="ArrayString<MAXNAMELEN>")]
+#[serde(try_from="String")]
 pub(crate) struct Name {
-    first: ArrayString<MAXNAMELEN>,
-    last: ArrayString<MAXNAMELEN>
+    first: String,
+    last: String
 }
 
-impl TryFrom<ArrayString<MAXNAMELEN>> for Name {
+impl TryFrom<String> for Name {
     type Error = error::Error;
-    fn try_from(str: ArrayString<MAXNAMELEN>) -> Result<Self, error::Error> {
+    fn try_from(str: String) -> Result<Self, error::Error> {
         // Canvas names are formatted as "Last, First"
         let name_parts: Vec<_> = str.split(',').collect();
         match &name_parts[..] {
             &[l, f] => {
-                let trim = |s: &str| {
-                    let trimmed = s.trim();
-                    trimmed.try_into()
-                           .map_err(|_| error::Error::NameTooLongError(trimmed.into()))
-                };
-                Ok(Name { first: trim(f)?, last: trim(l)? })
+                Ok(Name { first: f.trim().to_owned(), last: l.trim().to_owned() })
             },
             _ => Err(error::Error::ParseNameError(str))
         }
@@ -243,8 +205,8 @@ impl Display for Name {
     }
 }
 
-#[derive(Clone, Copy, Debug, Deserialize, Display, Eq, From, Into, Hash, Ord, PartialEq, PartialOrd)]
-pub (crate)struct SID(pub(crate) ArrayString<SIDLEN>);
+#[derive(Clone, Debug, Deserialize, Display, Eq, From, Into, Hash, Ord, PartialEq, PartialOrd)]
+pub (crate)struct SID(pub(crate) String);
 
 #[derive(Clone, Debug, Eq, PartialEq, Hash, Ord, PartialOrd)]
 pub (crate)struct Student<'a> {
@@ -269,10 +231,14 @@ impl<'a> Display for Student<'a> {
 /// The representation of a roster
 #[derive(Clone, Debug)]
 pub(crate) struct Roster<'a> {
+    /// Maximum number of groups
+    pub(crate) ngroups: usize,
+    /// Target number of students per group
+    pub(crate) group_size: usize,
     /// Lab section
     pub(crate) session: Session,
     /// List of students enrolled in the section
-    pub(crate) students: ArrayVec<Student<'a>, {MAXGROUPSIZE * NGROUPS}>,
+    pub(crate) students: Vec<Student<'a>>,
 }
 
 /// An iterator of groups within a section. A group is a set of students assigned to the same lab
@@ -305,7 +271,7 @@ impl<'a> Iterator for Groups<'a> {
 impl<'a> Roster<'a> {
     /// The number of groups we need to have in a section
     pub(crate) fn ngroups(&self) -> usize {
-        Ord::min(NGROUPS, ceil_div(self.students.len(), TARGETGROUPSIZE))
+        Ord::min(self.ngroups, ceil_div(self.students.len(), self.group_size))
     }
 
     /// Returns an iterator over groups of students
@@ -314,7 +280,11 @@ impl<'a> Roster<'a> {
     }
 
     /// Creates a vec of rosters from a given set of record entries
-    pub(crate) fn from_records(records: &'a [Record]) -> Result<Vec<Roster<'a>>, error::Error> {
+    pub(crate) fn from_records(
+        ngroups: usize,
+        group_size: usize,
+        records: &'a [Record]
+    ) -> Vec<Roster<'a>> {
         let mut rng = rand::thread_rng();
         let mut recs: Vec<_> = records.iter().collect();
         recs.sort_by_key(|&record| record.session.section);
@@ -322,7 +292,7 @@ impl<'a> Roster<'a> {
             .group_by(|record| record.session)
             .into_iter()
             .map(|(session, list)| {
-                let mut students = ArrayVec::new();
+                let mut students = vec![];
                 let mut ord_list: Vec<_> = list.cloned().collect();
                 ord_list.sort();
                 let mut clashed_last = false;
@@ -333,10 +303,10 @@ impl<'a> Roster<'a> {
                     let name_clash = clashed_with_next || clashed_last;
                     clashed_last = clashed_with_next;
                     let student = Student { name: &item.name, sid: &item.sid, name_clash };
-                    students.try_push(student).map_err(|_| error::Error::SectionSizeError)?;
+                    students.push(student);
                 }
                 students.shuffle(&mut rng);
-                Ok(Roster { session, students })
+                Roster { group_size, ngroups, session, students }
             })
             .collect()
     }

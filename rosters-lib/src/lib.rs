@@ -22,6 +22,9 @@ mod xlsx;
 use data::{Checkpoint, Config, Roster};
 pub use data::{Class, Lab};
 
+pub const NGROUPS: usize = 6;
+pub const GROUPSIZE: usize = 5;
+
 /// Starter configuration file that is embedded into the executable. This is saved as a file when
 /// the user calls `rosters config`.
 pub const EXAMPLE_CONFIG: &'static str = std::include_str!("../example_config.toml");
@@ -90,6 +93,8 @@ pub struct Generator {
     pub input: PathBuf,
     pub output: Option<PathBuf>,
     pub lab: Lab,
+    pub group_size: Option<usize>,
+    pub ngroups: Option<usize>,
     pub no_sign: bool,
     pub nox: bool,
     pub config: Option<PathBuf>,
@@ -113,7 +118,9 @@ impl Generator {
             .filter_map(|x| x.ok())
             .collect();
         if records.is_empty() { Err(error::Error::NoRecordFound)? };
-        let rosters = Roster::from_records(&records)?;
+        let ngroups = self.ngroups.or(config.ngroups).unwrap_or(NGROUPS);
+        let group_size = self.group_size.unwrap_or(GROUPSIZE);
+        let rosters = Roster::from_records(ngroups, group_size, &records);
         let class = records.get(0).ok_or(error::Error::NoRecordFound)?.session.class;
 
         let base_dir = self.output.ok_or("").or_else(|_| env::current_dir())?;

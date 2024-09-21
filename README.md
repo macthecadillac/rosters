@@ -66,6 +66,9 @@ Here is a sample configuration with all the recognized keys:
 # This file is written in the TOML format. Lines prefixed with the "#" sign
 # are comments and will be ignored.
 
+# This is the hard upper limit of the number of groups in a section
+number-of-groups = 6
+
 ##### Uncomment the following block to enable per-TA PDF generation
 
 # [ta-assignment]
@@ -102,7 +105,7 @@ Here is a sample configuration with all the recognized keys:
 # lab4 = ['A6', 'B12', 'C1', 'C5', 'C8']
 # lab5 = ['A5', 'B10', 'C2', 'D2(a)', 'D2(b)']
 
-##### Course specific settings. Overriden by the [checkpoints] block
+##### Course specific settings. Overriden by the [checkpoints] block. See above
 
 # These are the checkpoints during Summer Session II 2024.
 [1AL.checkpoints]
@@ -140,6 +143,10 @@ $ rosters config --output /path/to/file
 # generate rosters from a Canvas exported CSV file
 $ rosters generate --lab 1 --input /path/to/canvas.csv
 
+# generate rosters from a Canvas exported CSV file and try to max out the group
+# sizes at three people
+$ rosters generate --lab 1 --group-size 3 --input /path/to/canvas.csv
+
 # generate rosters from a Canvas exported CSV file for the Math Bootcamp with
 # the default configuration shipped with the program
 $ rosters generate --lab mathbootcamp --defaults --input /path/to/canvas.csv
@@ -148,10 +155,10 @@ $ rosters generate --lab mathbootcamp --defaults --input /path/to/canvas.csv
 $ rosters generate --lab 1 --input /path/to/canvas.csv --config /path/to/config.toml
 
 # generate rosters from a Canvas exported CSV file, specifying output file
-$ rosters generate --lab 2 -i /path/to/canvas.csv -o /path/to/output/directory
+$ rosters generate --lab 2 --group-size 3 -i /path/to/canvas.csv -o /path/to/output/directory
 
 # generate rosters from a Canvas exported CSV file, skipping Excel file generation
-$ rosters generate --lab 2 -i /path/to/canvas.csv --nox
+$ rosters generate --lab 2 --group-size 3 -i /path/to/canvas.csv --nox
 ```
 
 # Building from source
