@@ -1,0 +1,132 @@
+name: Build
+
+on:
+  push:
+    branches: ["**"]
+  workflow_call:
+
+jobs:
+  linux:
+    name: Linux (musl x86_64)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Set up Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: x86_64-unknown-linux-musl
+      - name: Install dependencies
+        run: sudo apt-get update && sudo apt-get install -y pandoc musl-tools
+      - name: Build
+        run: cargo build --target x86_64-unknown-linux-musl --release
+      - name: Package
+        run: |
+          cp target/x86_64-unknown-linux-musl/release/rosters .
+          cp rosters-lib/fonts/LICENSE FONT_LICENSE
+          pandoc --metadata title="rosters" -s -o README.html README.md
+          tar -czvf rosters-linux-musl-x86_64.tar.gz rosters LICENSE README.html FONT_LICENSE
+          sha512sum rosters-linux-musl-x86_64.tar.gz > SHA512SUMS
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: linux-musl
+          path: |
+            rosters-linux-musl-x86_64.tar.gz
+            SHA512SUMS
+
+  macos:
+    name: macOS (universal)
+    runs-on: macos-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Set up Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: aarch64-apple-darwin,x86_64-apple-darwin
+      - name: Install dependencies
+        run: brew install pandoc
+      - name: Build
+        run: |
+          cargo build --target aarch64-apple-darwin --release
+          cargo build --target x86_64-apple-darwin --release
+          lipo -create -output rosters target/aarch64-apple-darwin/release/rosters target/x86_64-apple-darwin/release/rosters
+      - name: Package
+        run: |
+          cp rosters-lib/fonts/LICENSE FONT_LICENSE
+          pandoc --metadata title="rosters" -s -o README.html README.md
+          zip rosters-macos-universal.zip rosters README.html LICENSE FONT_LICENSE
+          shasum -a 512 rosters-macos-universal.zip > SHA512SUMS
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: macos-universal
+          path: |
+            rosters-macos-universal.zip
+            SHA512SUMS
+
+  windows-cli:
+    name: Windows CLI (x86_64)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Set up Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: x86_64-pc-windows-gnu
+      - name: Install dependencies
+        run: sudo apt-get update && sudo apt-get install -y gcc-mingw-w64-x86-64 pandoc zip
+      - name: Build
+        run: cargo build --target x86_64-pc-windows-gnu --release
+      - name: Package
+        run: |
+          mkdir windows
+          cp target/x86_64-pc-windows-gnu/release/rosters.exe ./windows/rosters.exe
+          cp rosters-lib/fonts/LICENSE ./windows/FONT_LICENSE.txt
+          cp LICENSE ./windows/LICENSE.txt
+          cat README.md | sed 's/`rosters /`rosters.exe /g' | sed 's/$ rosters/$ rosters.exe/g' | pandoc --metadata title="rosters" -s -o ./windows/README.html
+          (cd windows && zip rosters-windows-cli-x86_64.zip rosters.exe LICENSE.txt README.html FONT_LICENSE.txt)
+          cp ./windows/rosters-windows-cli-x86_64.zip .
+          sha512sum rosters-windows-cli-x86_64.zip > SHA512SUMS
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: windows-cli
+          path: |
+            rosters-windows-cli-x86_64.zip
+            SHA512SUMS
+
+  windows-gui:
+    name: Windows GUI (x86_64)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Set up Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: x86_64-pc-windows-gnu
+      - name: Install dependencies
+        run: sudo apt-get update && sudo apt-get install -y gcc-mingw-w64-x86-64 pandoc zip
+      - name: Build
+        run: cargo build --package rosters-windows-gui --target x86_64-pc-windows-gnu --release
+      - name: Package
+        run: |
+          mkdir windows
+          cp target/x86_64-pc-windows-gnu/release/rosters-windows-gui.exe ./windows/rosters.exe
+          cp rosters-lib/fonts/LICENSE ./windows/FONT_LICENSE.txt
+          cp LICENSE ./windows/LICENSE.txt
+          pandoc --metadata title="rosters" -s -o README_WINDOWS_GUI.html ./README_WINDOWS_GUI.md
+          cp README_WINDOWS_GUI.html ./windows/README.html
+          (cd windows && zip rosters-windows-gui-x86_64.zip rosters.exe LICENSE.txt README.html FONT_LICENSE.txt)
+          cp ./windows/rosters-windows-gui-x86_64.zip .
+          sha512sum rosters-windows-gui-x86_64.zip > SHA512SUMS
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: windows-gui
+          path: |
+            rosters-windows-gui-x86_64.zip
+            SHA512SUMS

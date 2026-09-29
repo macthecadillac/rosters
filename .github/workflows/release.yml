@@ -1,0 +1,71 @@
+name: Release
+
+on:
+  push:
+    tags: ["**"]
+
+jobs:
+  build:
+    uses: ./.github/workflows/build.yml
+
+  release:
+    name: Sign and publish
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      actions: read
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Download build artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+      - name: Assemble release files
+        run: |
+          mkdir release
+          mv artifacts/linux-musl/rosters-linux-musl-x86_64.tar.gz release/
+          mv artifacts/macos-universal/rosters-macos-universal.zip release/
+          mv artifacts/windows-cli/rosters-windows-cli-x86_64.zip release/
+          mv artifacts/windows-gui/rosters-windows-gui-x86_64.zip release/
+          cat artifacts/linux-musl/SHA512SUMS \
+              artifacts/macos-universal/SHA512SUMS \
+              artifacts/windows-cli/SHA512SUMS \
+              artifacts/windows-gui/SHA512SUMS > release/SHA512SUMS
+          tar -czf release/rosters-src.tar.gz \
+              rosters-lib/Cargo.* \
+              rosters-lib/example_config.toml \
+              rosters-lib/fonts/* \
+              rosters-lib/src/* \
+              rosters-cli/Cargo.* \
+              rosters-cli/src/* \
+              rosters-windows-gui/Cargo.* \
+              rosters-windows-gui/src/* \
+              Cargo.toml \
+              Cargo.lock \
+              README.md
+      - name: Import GPG key
+        env:
+          GPG_PRIVATE_KEY: ${{ secrets.GPG_PRIVATE_KEY }}
+        run: |
+          mkdir -p ~/.gnupg
+          chmod 700 ~/.gnupg
+          echo "allow-loopback-pinentry" >> ~/.gnupg/gpg-agent.conf
+          echo "$GPG_PRIVATE_KEY" | gpg --batch --import
+      - name: Sign checksums and source tarball
+        env:
+          GPG_KEY_PASSPHRASE: ${{ secrets.GPG_KEY_PASSPHRASE }}
+        run: |
+          key_id=$(gpg --list-secret-keys --with-colons | awk -F: '/^sec:/ { print $5; exit }')
+          sign() {
+            gpg --batch --yes --pinentry-mode loopback \
+              --passphrase "$GPG_KEY_PASSPHRASE" --local-user "$key_id" \
+              --armor --output "$1.sig" --detach-sig "$1"
+          }
+          sign release/SHA512SUMS
+          sign release/rosters-src.tar.gz
+      - name: Publish release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release create "$GITHUB_REF_NAME" --title "$GITHUB_REF_NAME" --verify-tag release/*
