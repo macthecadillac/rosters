@@ -73,12 +73,20 @@ impl<'de> Deserialize<'de> for Session {
             &['P', 'H', 'Y', 'S', ' ', '1', 'C', 'L', ..] => Ok(Class::C),
             _ => Err(D::Error::custom("unrecognized string"))
         }?;
+        // Canvas appends the CRN to the section name, e.g. "PHYS 1BL - 007  [261015]". The
+        // bracketed CRN is not needed, so drop everything from the last '[' when the string
+        // ends with the matching ']'.
+        let trimmed = str.trim();
+        let s = match trimmed.rfind('[') {
+            Some(i) if trimmed.ends_with(']') => trimmed[..i].trim(),
+            _ => trimmed
+        };
+        let tokens: Vec<_> = s.split_whitespace().collect();
         let section = Section(
-            str.split_whitespace().rev().skip(1).next()
-               .ok_or(D::Error::custom("unrecognized string"))?
-               // Try to parse NNN as an integer
-               .parse::<usize>()
-               .map_err(|m| D::Error::custom(m))?
+            // the CRN (when unbracketed) directly follows the section number
+            tokens.iter().rev().skip(1).find_map(|t| t.parse::<usize>().ok())
+                .or_else(|| tokens.last().and_then(|t| t.parse::<usize>().ok()))
+                .ok_or_else(|| D::Error::custom("unrecognized string"))?
             );
         Ok(Session { class, section })
     }
