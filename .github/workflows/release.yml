@@ -33,18 +33,6 @@ jobs:
               artifacts/macos-universal/SHA512SUMS \
               artifacts/windows-cli/SHA512SUMS \
               artifacts/windows-gui/SHA512SUMS > release/SHA512SUMS
-          tar -czf release/rosters-src.tar.gz \
-              rosters-lib/Cargo.* \
-              rosters-lib/example_config.toml \
-              rosters-lib/fonts/* \
-              rosters-lib/src/* \
-              rosters-cli/Cargo.* \
-              rosters-cli/src/* \
-              rosters-windows-gui/Cargo.* \
-              rosters-windows-gui/src/* \
-              Cargo.toml \
-              Cargo.lock \
-              README.md
       - name: Import GPG key
         env:
           GPG_PRIVATE_KEY: ${{ secrets.GPG_PRIVATE_KEY }}
@@ -53,7 +41,7 @@ jobs:
           chmod 700 ~/.gnupg
           echo "allow-loopback-pinentry" >> ~/.gnupg/gpg-agent.conf
           echo "$GPG_PRIVATE_KEY" | gpg --batch --import
-      - name: Sign checksums and source tarball
+      - name: Sign checksums
         env:
           GPG_KEY_PASSPHRASE: ${{ secrets.GPG_KEY_PASSPHRASE }}
         run: |
@@ -64,7 +52,6 @@ jobs:
               --armor --output "$1.sig" --detach-sig "$1"
           }
           sign release/SHA512SUMS
-          sign release/rosters-src.tar.gz
       - name: Publish release
         env:
           GH_TOKEN: ${{ github.token }}

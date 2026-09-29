@@ -67,25 +67,26 @@ impl<'de> Deserialize<'de> for Session {
         let str = String::deserialize(deserializer).map_err(D::Error::custom)?;
         let chars: Vec<_> = str.trim().chars().collect();
         let class = match chars.as_slice() {
-            // the first pattern is for the toml configs, the second for Canvas output
+            // the toml configs and the older Canvas output spell the course
+            // "PHYS 1AL"; the current Canvas output spells it "PHYS-001AL"
             &['P', 'H', 'Y', 'S', ' ', '1', 'A', 'L', ..] => Ok(Class::A),
             &['P', 'H', 'Y', 'S', ' ', '1', 'B', 'L', ..] => Ok(Class::B),
             &['P', 'H', 'Y', 'S', ' ', '1', 'C', 'L', ..] => Ok(Class::C),
+            &['P', 'H', 'Y', 'S', '-', _, _, _, 'A', 'L', ..] => Ok(Class::A),
+            &['P', 'H', 'Y', 'S', '-', _, _, _, 'B', 'L', ..] => Ok(Class::B),
+            &['P', 'H', 'Y', 'S', '-', _, _, _, 'C', 'L', ..] => Ok(Class::C),
             _ => Err(D::Error::custom("unrecognized string"))
         }?;
-        // Canvas appends the CRN to the section name, e.g. "PHYS 1BL - 007  [261015]". The
-        // bracketed CRN is not needed, so drop everything from the last '[' when the string
-        // ends with the matching ']'.
         let trimmed = str.trim();
         let s = match trimmed.rfind('[') {
             Some(i) if trimmed.ends_with(']') => trimmed[..i].trim(),
             _ => trimmed
         };
-        let tokens: Vec<_> = s.split_whitespace().collect();
+        let tokens: Vec<&str> = s.split_whitespace().collect();
         let section = Section(
-            // the CRN (when unbracketed) directly follows the section number
             tokens.iter().rev().skip(1).find_map(|t| t.parse::<usize>().ok())
-                .or_else(|| tokens.last().and_then(|t| t.parse::<usize>().ok()))
+                .or_else(|| tokens.last()
+                    .and_then(|t| t.split('-').find_map(|c| c.parse::<usize>().ok())))
                 .ok_or_else(|| D::Error::custom("unrecognized string"))?
             );
         Ok(Session { class, section })

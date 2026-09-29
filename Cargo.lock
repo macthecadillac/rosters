@@ -876,7 +876,7 @@ checksum = "d6f6ff9a378485b298a5286656da665ba74413d36db0979633275d2e708145d4"
 
 [[package]]
 name = "rosters-cli"
-version = "2.4.0"
+version = "2.5.1"
 dependencies = [
  "clap",
  "main_error",
@@ -885,7 +885,7 @@ dependencies = [
 
 [[package]]
 name = "rosters-lib"
-version = "2.4.0"
+version = "2.5.1"
 dependencies = [
  "arrayvec",
  "csv",
@@ -905,7 +905,7 @@ dependencies = [
 
 [[package]]
 name = "rosters-windows-gui"
-version = "2.4.0"
+version = "2.5.1"
 dependencies = [
  "arrayvec",
  "directories",
