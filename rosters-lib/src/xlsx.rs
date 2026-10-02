@@ -32,21 +32,23 @@ impl Workbook {
         let num_fmt = Format::new().set_num_format("0");
         sheet.write_string_with_format(0, 0, "\
             Under the \"Signature\" column, leave blank if present, enter \
-            \"Absent\" if absent, describe circumstances if student left \
-            soon after quiz",
+            \"Absent\" if absent",
             &red_text)?;
         sheet.write_string_with_format(1, 0, "\
             Under the \"Late\" column, enter the amount of time if they are late",
             &red_text)?;
-        let mut row = 2;
-        for (i, s) in ["Signature", "Late", "Group", "Student"].into_iter().enumerate() {
+        sheet.write_string_with_format(2, 0, "\
+            Under the \"Comments\" column, enter comments made on the sheet (e.g. no lab notebook, left after quiz, etc.)",
+            &red_text)?;
+        let mut row = 3;
+        for (i, s) in ["Signature", "Late", "Comments", "Group", "Student"].into_iter().enumerate() {
             sheet.write_string(row, i as u16, s)?;
         }
         row += 1;
         for (group, students) in roster.groups().enumerate() {
             for student in students.iter() {
-                sheet.write_number_with_format(row, 2, group as f64 + 1., &num_fmt)?;
-                sheet.write_string(row, 3, format!("{}", student))?;
+                sheet.write_number_with_format(row, 3, group as f64 + 1., &num_fmt)?;
+                sheet.write_string(row, 4, format!("{}", student))?;
                 row += 1;
             }
         }
